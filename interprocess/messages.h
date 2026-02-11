@@ -19,4 +19,26 @@
 
 // define the data structures for your messages here
 
+//Request messages client -> router-dealer
+typedef struct
+{
+    int req_id;
+    int service_id;
+    char data[];
+} REQ_MESSAGE;
+
+//Service message router-dealer -> services
+typedef struct
+{
+    int req_id;
+    char data[];
+}SERVICE_MESSAGE;
+
+//
+typedef struct
+{
+    int req_id;
+    char result[]; //what type of data is result
+} RSP_MESSAGE;
+
 #endif

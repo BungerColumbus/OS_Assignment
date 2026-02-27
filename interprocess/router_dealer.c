@@ -41,7 +41,6 @@ int main (int argc, char * argv[])
     fprintf (stderr, "%s: invalid arguments\n", argv[0]);
   }
   
-  
 
   // TODO:
     //  * create the message queues (see message_queue_test() in

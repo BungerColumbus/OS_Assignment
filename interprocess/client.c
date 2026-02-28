@@ -27,18 +27,34 @@
 
 static void rsleep (int t);
 
-
 int main (int argc, char * argv[])
 {
+    REQ_MESSAGE	req_message;
+	Request 	req;
+	mqd_t		mq_client;
     // TODO:
     // (see message_queue_test() in interprocess_basic.c)
     //  * open the message queue (whose name is provided in the
     //    arguments)
+    
+    // When starting the client do it like this:
+    // ./client "/mq_req_name" 
+    mq_fd_request = mq_open(argv[1], O_WRONLY);
+    
     //  * repeatingly:
     //      - get the next job request 
     //      - send the request to the Req message queue
     //    until there are no more requests to send
+    while(getNextRequest(&, &, &) == NO_ERR)
+    {
+        getNextRequest(&, &, &);
+        mq_send (mq_fd_request, );
+
+
+        // delay to avoid flooding
+        usleep(100000);  // 100ms
+    }
     //  * close the message queue
-    
+    mq_close (mq_fd_request);
     return (0);
 }

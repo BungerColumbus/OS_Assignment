@@ -23,9 +23,9 @@
 //Request messages client -> router-dealer
 typedef struct
 {
-    int req_id;
+    int job_id;
     int service_id;
-    char data[];
+    int data;
 } REQ_MESSAGE;
 
 //Service message router-dealer -> services

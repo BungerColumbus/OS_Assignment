@@ -27,50 +27,81 @@
 
 static void rsleep (int t);
 
+char* name = "NO_NAME_DEFINED";
+mqd_t dealer2worker;
+mqd_t worker2dealer;
 
 int main (int argc, char * argv[])
 {
     // check if the user has started this program with valid arguments
-    if (argc != 3)
-    {
-    fprintf (stderr, "%s: %d arguments for Service 1:\n", argv[0], argc);
-        for (int i = 1; i < argc; i++)
-        {
-        fprintf (stderr, " '%s'\n", argv[i]);
-        }
-    exit (3);
+    if (argc != 3) {
+        fprintf(stderr, "Invalid number of arguments for s1.\n");
+        exit(3);
     }
-    // TODO:
-    // (see message_queue_test() in interprocess_basic.c)
-    char* s1 = argv[1];
-    char* rsp = argv[2];
-
-    mqd_t mq_fd_s1;
-    mqd_t mq_fd_response;
 
     SERVICE_MESSAGE message;
     RSP_MESSAGE response;
-    //  * open the two message queues (whose names are provided in the
-    //    arguments)
-    mq_fd_s1 = mq_open (s1, O_RDONLY);
-    mq_fd_response = mq_open (rsp, O_WRONLY);
-    //  * repeatedly:
-    do {
-    //      - read from the S1 message queue the new job to do
-        mq_receive (mq_fd_s1, (char *) &message, sizeof (message), NULL);
-    //      - wait a random amount of time (e.g. rsleep(10000);)
+    
+    // open queues
+    name = argv[1];
+    dealer2worker = mq_open (name, O_RDONLY);
+    if (dealer2worker == (mqd_t)-1) 
+    {
+        perror("mq_open dealer2worker queue failed\n");
+        exit(4);
+    }
+
+    name = argv[2];
+    worker2dealer = mq_open (name, O_WRONLY);
+    if (worker2dealer == (mqd_t)-1) 
+    {
+        perror("mq_open worker2dealer queue failed\n");
+        exit(4);
+    }
+
+    ssize_t bytes_read;
+    ssize_t bytes_sent;
+
+    while(1) 
+    {
+    //read from the s1 message queue the new job to do
+        bytes_read = mq_receive(dealer2worker, (char *)&message, sizeof(message), NULL);
+        if (bytes_read == -1) 
+        {
+             if (errno == EBADF || errno == EINVAL) 
+            {
+                perror("Queue removed.\n");
+                break;
+            }
+            perror("mq_receive failure in s1\n");
+            exit(4);
+        }
+    // wait a random amount of time (e.g. rsleep(10000);)
         rsleep(10000);
-    //      - do the job 
+    // do the job 
         response.result = service(message.data);
         response.req_id = message.req_id;
-    //      - write the results to the Rsp message queue
-        mq_send (mq_fd_response, (char *) &response, sizeof (response), 0);    
-    //    until there are no more tasks to do
-    //??
-    } while (1);           
-    //  * close the message queues
-    mq_close (mq_fd_response);
-    mq_close (mq_fd_s1);   
+    // write the results to the Response message queue
+        bytes_sent = mq_send (worker2dealer, (char *) &response, sizeof (response), 0);  
+        if (bytes_sent == -1)
+        {
+            perror("mq_send failure in worker2dealer queue, s1\n");
+            exit(4);
+        }  
+    }          
+
+    //  close the message queues  
+    if (mq_close(worker2dealer) == -1) 
+    {
+        perror("mq_close response failed\n");
+         exit(4);
+    }
+ 
+    if (mq_close(dealer2worker) == -1) 
+    {
+        perror("mq_close s1 failed\n");
+         exit(4);
+    } 
     return(0);
 }
 

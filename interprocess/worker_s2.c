@@ -60,7 +60,7 @@ int main (int argc, char * argv[])
     mq_fd_response = mq_open (rsp, O_WRONLY);
     //  * repeatedly:
     do {
-    //      - read from the S1 message queue the new job to do
+    //      - read from the S2 message queue the new job to do
         mq_receive (mq_fd_s2, (char *) &message, sizeof (message), NULL);
     //      - wait a random amount of time (e.g. rsleep(10000);)
         rsleep(10000);

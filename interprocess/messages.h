@@ -25,21 +25,21 @@ typedef struct
 {
     int req_id;
     int service_id;
-    char data[];
+    int data;
 } REQ_MESSAGE;
 
 //Service message router-dealer -> services
 typedef struct
 {
     int req_id;
-    char data[];
-}SERVICE_MESSAGE;
+    int data;
+} SERVICE_MESSAGE;
 
 //
 typedef struct
 {
     int req_id;
-    char result[]; //what type of data is result
+    int result;
 } RSP_MESSAGE;
 
 #endif

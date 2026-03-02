@@ -125,7 +125,8 @@ int main (int argc, char * argv[])
 
   int status;
   int reqCounter = 0;
-  struct mq_attr attr; //Instantiating structure of attributes for message queues
+  struct mq_attr attr; 
+  attr.mq_flags = 0;//Instantiating structure of attributes for message queues
 
   sprintf (client2dealer_name, "/mq_request_%s_%d", "Group44", getpid()); //Naming the file paths to the queues according to the 
   sprintf (dealer2worker1_name, "/mq_worker1_%s_%d", "Group44", getpid()); //assignment specificiation. Our group number is included
@@ -168,7 +169,7 @@ int main (int argc, char * argv[])
       {   
           char rqfd_str[12]; // Buffer to hold the number
           sprintf(rqfd_str, "%d", mq_fd_req); // Convert int (e.g., 3) to string ("3")
-          execlp(clientPath, clientPath, rqfd_str, NULL);
+          execlp(clientPath, clientPath, client2dealer_name, NULL);
 
           perror("execlp failed client"); //The program should never reach here
           exit(2);

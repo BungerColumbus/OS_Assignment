@@ -24,7 +24,7 @@
 #include <errno.h>    
 #include <unistd.h>    // for execlp
 #include <mqueue.h>    // for mq
-
+#include <poll.h> //for efficient multi-queue checks
 
 #include "settings.h"  
 #include "messages.h"
@@ -168,8 +168,56 @@ int main (int argc, char * argv[])
 
     //  * read requests from the Req queue and transfer them to the workers
     //    with the Sx queues
-
     
+    //We will try implementing the polling method. 
+
+    struct pollfd fds[2];
+    int ret;
+
+    fds[0].fd = mq_fd_req;
+    fds[0].events = POLLIN;
+    
+    fds[1].fd = mq_fd_rep;
+    fds[1].events = POLLIN;
+
+    while(true){
+    
+      ret = poll(fds, 2, 200000); //or -1 for wait forever
+
+      if (ret  == -1){
+        perror("Poll failed");
+        exit(4);
+      }
+
+      if (ret == 0){
+        perror("Timeout on poll");
+        //exit(5);
+      }
+
+      if(fds[0].revents & POLLIN){    //Handle a message in the request queue
+        printf (stderr, "                                   request: receiving...\n");
+        mq_receive (mq_fd_req, (char *) &req, sizeof (req), NULL);
+
+        printf (stderr, "                                   child: received: %d, %d, '%d'\n",
+            req.job_id, req.service_id, req.data);
+
+        ser.data = req.data;
+        ser.req_id = req.job_id;
+
+        if(req.service_id == 1){
+          mq_send(mq_fd_S1, (char *) &req, sizeof(SERVICE_MESSAGE), NULL);
+        } else {
+          mq_send(mq_fd_S2, (char *) &req, sizeof(SERVICE_MESSAGE), NULL);
+        }
+      }
+
+      
+
+    }
+
+
+
+
 
     }
 

@@ -27,6 +27,7 @@
 #include "service2.h"
 
 static void rsleep (int t);
+void handle_shutdown(int sig);
 
 char* name = "NO_NAME_DEFINED";
 volatile sig_atomic_t keep_working = 1;

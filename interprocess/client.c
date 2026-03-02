@@ -98,7 +98,7 @@ int main (int argc, char * argv[])
         req_message.data = req.data;
         req_message.service_id = req.service;
 
-        ssize_t send_result = mq_send (mq_request, (char *) &req_message, sizeof (req_message), NULL);
+        ssize_t send_result = mq_send (mq_request, (char *) &req_message, sizeof (req_message), 0);
         
         // giving error message 7 if it failed to send message
         if (send_result == -1) {
@@ -111,7 +111,7 @@ int main (int argc, char * argv[])
             fprintf(stderr, "[%d] Sent %zd bytes\n", getpid(), send_result);
         }
         // delay to avoid flooding
-        usleep(100000);  // 100ms
+        rsleep(100000);  // 100ms
     }
     //  * close the message queue
     mq_close (mq_request);
@@ -124,4 +124,23 @@ int main (int argc, char * argv[])
         fprintf(stderr, "[%d] mq_request closed\n", getpid());
     }
     return (0); // slay thyself
+}
+
+/*
+ * rsleep(int t)
+ *
+ * The calling thread will be suspended for a random amount of time
+ * between 0 and t microseconds
+ * At the first call, the random generator is seeded with the current time
+ */
+static void rsleep (int t)
+{
+    static bool first_call = true;
+    
+    if (first_call == true)
+    {
+        srandom (time (NULL) % getpid ());
+        first_call = false;
+    }
+    usleep (random() % t);
 }

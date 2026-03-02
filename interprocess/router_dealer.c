@@ -53,10 +53,7 @@ getattr (mqd_t mq_fd)
                 mq_fd, attr.mq_maxmsg, attr.mq_msgsize, attr.mq_curmsgs);
 }
 
-void cleanup_and_exit(int sig) {  //Cleanup function in case of input during program run
-    cleanup();
-    _exit(0);
-}
+
 
 void cleanup(void){ //Generic cleanup function for exit
     kill(0, SIGKILL); //Kill all children
@@ -86,6 +83,10 @@ void cleanup(void){ //Generic cleanup function for exit
       }
     };
 
+}
+void cleanup_and_exit(int sig) {  //Cleanup function in case of input during program run
+    cleanup();
+    _exit(0);
 }
 
 
@@ -165,7 +166,7 @@ int main (int argc, char * argv[])
       //Assign client process its main function
       if (processID == 0)
       {   
-          execlp(*clientPath, *clientPath, mq_fd_req, NULL);
+          execlp(clientPath, clientPath, mq_fd_req, NULL);
 
           perror("execlp failed"); //The program should never reach here
           exit(2);
@@ -186,7 +187,7 @@ int main (int argc, char * argv[])
       }
 
       if(processID == 0){
-        execlp(*worker1Path, *worker1Path, mq_fd_S1, mq_fd_rep, NULL);
+        execlp(worker1Path, worker1Path, mq_fd_S1, mq_fd_rep, NULL);
         
         perror("execlp failed");  //The program should never reach here
         exit(2);
@@ -207,7 +208,7 @@ int main (int argc, char * argv[])
       }
 
       if(processID == 0){
-        execlp(*worker2Path, *worker2Path, mq_fd_S1, mq_fd_rep, NULL);
+        execlp(worker2Path, worker2Path, mq_fd_S1, mq_fd_rep, NULL);
         
         perror("execlp failed");  //The program should never reach here
         exit(2);
@@ -259,27 +260,26 @@ int main (int argc, char * argv[])
     
 
     if(fds[0].revents & POLLIN){    //Handle a message in the request queue
-      printf (stderr, "                                   request: receiving...\n");
+      fprintf (stderr, "                                   request: receiving...\n");
       ssize_t bytes_read = mq_receive (mq_fd_req, (char *) &req, sizeof (req), NULL);
 
       if (bytes_read == -1) {
           if (errno == EAGAIN) {
-              printf("Nothing to read from client");
+              fprintf(stderr, "Nothing to read from client");
           } else if (errno == EINTR) {
-              printf("Receive from client was interrupted by arbitrary signal.\n");
+              fprintf(stderr, "Receive from client was interrupted by arbitrary signal.\n");
           } else {
               perror("mq_receive failed");
           }
       }
 
-      printf (stderr, "                                   request: received: %d, %d, '%d'\n",
+      fprintf (stderr, "                                   request: received: %d, %d, '%d'\n",
           req.job_id, req.service_id, req.data);
-
       ser.data = req.data;
       ser.req_id = req.job_id;
 
       if(req.service_id == 1){
-        if (mq_send(mq_fd_S1, (char *) &req, sizeof(SERVICE_MESSAGE), NULL) == -1) {
+        if (mq_send(mq_fd_S1, (char *) &ser, sizeof(SERVICE_MESSAGE), 0) == -1) {
           if (errno == EAGAIN) {
               perror("Queue full");
           } else if (errno == EMSGSIZE) {
@@ -290,7 +290,7 @@ int main (int argc, char * argv[])
 }
         
       } else {
-        if (mq_send(mq_fd_S2, (char *) &req, sizeof(SERVICE_MESSAGE), NULL) == -1) {
+        if (mq_send(mq_fd_S2, (char *) &ser, sizeof(SERVICE_MESSAGE), 0) == -1) {
           if (errno == EAGAIN) {
               perror("Queue full");
           } else if (errno == EMSGSIZE) {
@@ -308,14 +308,14 @@ int main (int argc, char * argv[])
 
       if (bytes_read == -1) {
           if (errno == EAGAIN) {
-              printf("Nothing to read at worker2dealer queue");
+              fprintf(stderr,"Nothing to read at worker2dealer queue");
           } else if (errno == EINTR) {
-              printf("Receive from worker was interrupted by arbitrary signal.\n");
+              fprintf(stderr, "Receive from worker was interrupted by arbitrary signal.\n");
           } else {
               perror("mq_receive failed");
           }
       }
-      printf(stdout, "%d --> %d", rsp.req_id, rsp.result);
+      fprintf(stdout, "%d --> %d", rsp.req_id, rsp.result);
       reqCounter--;
     }
 
@@ -328,7 +328,7 @@ int main (int argc, char * argv[])
 
     while(reqCounter > 0){  //Finish up the requests left after the client finished
       mq_receive(mq_fd_rep, (char *) &rsp, sizeof(RSP_MESSAGE), NULL);
-      printf(stdout, "%d --> %d", rsp.req_id, rsp.result);
+      fprintf(stdout, "%d --> %d", rsp.req_id, rsp.result);
       reqCounter--;
     }
 
@@ -351,28 +351,28 @@ int main (int argc, char * argv[])
 
     if (mq_close(mq_fd_rep) == -1) {
       if (errno == EBADF) {
-          printf("Error: Attempted to close an invalid or already-closed descriptor d2w1.\n");
+          fprintf(stderr,"Error: Attempted to close an invalid or already-closed descriptor d2w1.\n");
       } else {
           perror("mq_close failed");
       }
   }
     if (mq_close(mq_fd_req) == -1) {
       if (errno == EBADF) {
-          printf("Error: Attempted to close an invalid or already-closed descriptor c2d.\n");
+          fprintf(stderr,"Error: Attempted to close an invalid or already-closed descriptor c2d.\n");
       } else {
           perror("mq_close failed");
       }
   }
     if (mq_close(mq_fd_S1) == -1) {
     if (errno == EBADF) {
-        printf("Error: Attempted to close an invalid or already-closed descriptor d2w1.\n");
+        fprintf(stderr,"Error: Attempted to close an invalid or already-closed descriptor d2w1.\n");
     } else {
         perror("mq_close failed");
     }
   }
     if (mq_close(mq_fd_S2) == -1) {
     if (errno == EBADF) {
-        printf("Error: Attempted to close an invalid or already-closed descriptor d2w2.\n");
+        fprintf(stderr,"Error: Attempted to close an invalid or already-closed descriptor d2w2.\n");
     } else {
         perror("mq_close failed");
     }

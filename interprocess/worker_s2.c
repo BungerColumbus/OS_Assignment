@@ -21,6 +21,7 @@
 #include <unistd.h>     // for getpid()
 #include <mqueue.h>     // for mq-stuff
 #include <time.h>       // for time()
+#include <signal.h>     // for signal()
 
 #include "messages.h"
 #include "service2.h"
@@ -28,21 +29,25 @@
 static void rsleep (int t);
 
 char* name = "NO_NAME_DEFINED";
+volatile sig_atomic_t keep_working = 1;
 mqd_t dealer2worker;
 mqd_t worker2dealer;
 
 
 int main (int argc, char * argv[])
 {
+    SERVICE_MESSAGE message;
+    RSP_MESSAGE response;
+
+    ssize_t bytes_read;
+    ssize_t bytes_sent;
+    
     // check if the user has started this program with valid arguments
     if (argc != 3) {
         perror("Invalid number of arguments for s2.\n");
         exit(3);
     }
 
-    SERVICE_MESSAGE message;
-    RSP_MESSAGE response;
-    
     // open queues
     name = argv[1];
     dealer2worker = mq_open (name, O_RDONLY);
@@ -60,22 +65,25 @@ int main (int argc, char * argv[])
         exit(4);
     }
 
-    ssize_t bytes_read;
-    ssize_t bytes_sent;
+    //parent sends the shutdown signal
+    signal(SIGTERM, handle_shutdown);
 
-    while(1) 
+    while(keep_working) 
     {
     //read from the s2 message queue the new job to do
         bytes_read = mq_receive(dealer2worker, (char *)&message, sizeof(message), NULL);
         if (bytes_read == -1) 
         {
-             if (errno == EBADF || errno == EINVAL) 
+            if (bytes_read == -1)
             {
-                perror("Queue removed.\n");
-                break;
+                //has received signal to exit loop
+                if (errno == EINTR && !keep_working)
+                {
+                    break;  
+                }
+                perror("mq_receive failure in s2");
+                exit(4);
             }
-            perror("mq_receive failure in s2\n");
-            exit(4);
         }
     // wait a random amount of time (e.g. rsleep(10000);)
         rsleep(10000);
@@ -125,4 +133,15 @@ static void rsleep (int t)
         first_call = false;
     }
     usleep (random() % t);
+}
+
+/*
+ * rhandle_shutdown(int sig)
+ *
+ * The calling process will know it has no more incoming tasks
+ * 
+ */
+void handle_shutdown(int sig)
+{
+    keep_working = 0;
 }

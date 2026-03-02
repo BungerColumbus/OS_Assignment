@@ -34,10 +34,11 @@ getattr (mqd_t mq_fd)
     int                 rtnval;
     
     rtnval = mq_getattr (mq_fd, &attr);
+    
     if (rtnval == -1)
     {
         perror ("mq_getattr() failed");
-        exit (1);
+        exit (5);
     }
     fprintf (stderr, "%d: mqdes=%d max=%ld size=%ld nrof=%ld\n",
                 getpid(), 
@@ -60,12 +61,35 @@ int main (int argc, char * argv[])
     // ./client "/mq_req_name" 
     mq_request = mq_open(argv[1], O_WRONLY);
     
+    // Give error message 5 if a client failed to open the mq_request
+
+    if (mq_request == (mqd_t)-1) {
+    perror("client's mq_open() failed");
+    exit(6);
+    }
+
+    // prints each time a client opens the mq_request along with the process ID and the name of the queue "argv[1]"
+
+    fprintf(stderr, "[%d] Message queue opened: %s\n", getpid(), argv[1]);
+    getattr(mq_request);
+    
     //  * repeatingly:
     //      - get the next job request 
     //      - send the request to the Req message queue
     //    until there are no more requests to send
+    
+    // used to count the requests
+    int request_count = 0;
+    
     while(getNextRequest(&req.job, &req.data, &req.service) == NO_ERR)
     {
+        request_count++;
+
+        // print the request i with its params and from which client it came.
+        fprintf(stderr, "[%d] Request #%d: job=%d, data=%d, service=%d\n",
+            getpid(), request_count, req.job, req.data, req.service);
+
+
         // who is the mq_des
         // mq_request
         // who is pointer
@@ -74,13 +98,29 @@ int main (int argc, char * argv[])
         req_message.data = req.data;
         req_message.service_id = req.service;
 
-        mq_send (mq_request, (char *) &req_message, sizeof (req_message), NULL);
-
-
+        ssize_t send_result = mq_send (mq_request, (char *) &req_message, sizeof (req_message), NULL);
+        
+        // giving error if it failed to send message
+        if (send_result == -1) {
+            perror("mq_send() failed");
+            fprintf(stderr, "[%d] Failed to send request #%d\n", 
+            getpid(), request_count);
+        // says what client sent what
+        } else {
+            fprintf(stderr, "[%d] Sent %zd bytes\n", getpid(), send_result);
+        }
         // delay to avoid flooding
         usleep(100000);  // 100ms
     }
     //  * close the message queue
     mq_close (mq_request);
+    // send error message if it failed
+    if (mq_close(mq_request) == -1) {
+    perror("client's mq_close() failed");
+    exit(7);
+    // Decide whether to exit or continue cleanup
+    } else {
+        fprintf(stderr, "[%d] mq_request closed\n", getpid());
+    }
     return (0);
 }

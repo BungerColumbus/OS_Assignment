@@ -107,9 +107,9 @@ int main (int argc, char * argv[])
 
 
   //Pointers towards the filenames of the programs that will be run by the child processes
-  char* worker1Path = "/home/student/Documents/OS_Assignment/interprocess/worker_s1.c"; 
-  char* clientPath = "/home/student/Documents/OS_Assignment/interprocess/client.c";
-  char* worker2Path = "/home/student/Documents/OS_Assignment/interprocess/worker_s2.c";
+  char* worker1Path = "/home/student/Documents/OS_Assignment/interprocess/worker_s1"; 
+  char* clientPath = "/home/student/Documents/OS_Assignment/interprocess/client";
+  char* worker2Path = "/home/student/Documents/OS_Assignment/interprocess/worker_s2";
 
   pid_t processID;  //Defining process ID for the router dealer
   pid_t clientPID;  //Defining process ID for the client
@@ -166,9 +166,11 @@ int main (int argc, char * argv[])
       //Assign client process its main function
       if (processID == 0)
       {   
-          execlp(clientPath, clientPath, mq_fd_req, NULL);
+          char rqfd_str[12]; // Buffer to hold the number
+          sprintf(rqfd_str, "%d", mq_fd_req); // Convert int (e.g., 3) to string ("3")
+          execlp(clientPath, clientPath, rqfd_str, NULL);
 
-          perror("execlp failed"); //The program should never reach here
+          perror("execlp failed client"); //The program should never reach here
           exit(2);
       }
       clientPID = processID;
@@ -187,9 +189,13 @@ int main (int argc, char * argv[])
       }
 
       if(processID == 0){
-        execlp(worker1Path, worker1Path, mq_fd_S1, mq_fd_rep, NULL);
+        char w1fd_str[12]; // Buffer to hold number
+        sprintf(w1fd_str, "%d", mq_fd_S1); // Convert int to string 
+        char rsfd_str[12]; // Buffer to hold number
+        sprintf(rsfd_str, "%d", mq_fd_rep); // Convert int to string 
+        execlp(worker1Path, worker1Path, w1fd_str, rsfd_str, NULL);
         
-        perror("execlp failed");  //The program should never reach here
+        perror("execlp failed w1");  //The program should never reach here
         exit(2);
       }
 
@@ -208,9 +214,13 @@ int main (int argc, char * argv[])
       }
 
       if(processID == 0){
-        execlp(worker2Path, worker2Path, mq_fd_S1, mq_fd_rep, NULL);
+        char w2fd_str[12]; // Buffer to hold  number
+        sprintf(w2fd_str, "%d", mq_fd_S2); // Convert int to string ("3")
+        char rsfd_str[12]; // Buffer to hold number
+        sprintf(rsfd_str, "%d", mq_fd_rep); // Convert int to string 
+        execlp(worker2Path, worker2Path, w2fd_str, rsfd_str, NULL);
         
-        perror("execlp failed");  //The program should never reach here
+        perror("execlp failed w2");  //The program should never reach here
         exit(2);
       }
 

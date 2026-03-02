@@ -57,11 +57,11 @@ int main (int argc, char * argv[])
     //  * open the message queue (whose name is provided in the
     //    arguments)
     
-    // When starting the client do it like this:
+    // when starting the client do it like this:
     // ./client "/mq_req_name" 
     mq_request = mq_open(argv[1], O_WRONLY);
     
-    // Give error message 5 if a client failed to open the mq_request
+    // give error message 6 if a client failed to open the mq_request
 
     if (mq_request == (mqd_t)-1) {
     perror("client's mq_open() failed");
@@ -93,14 +93,14 @@ int main (int argc, char * argv[])
         // who is the mq_des
         // mq_request
         // who is pointer
-        // THE FUCKING ADDRESS OF THE MESSAGE I WANT TO SEND OFC
+        // the address of the message the clients wants to send
         req_message.job_id = req.job;
         req_message.data = req.data;
         req_message.service_id = req.service;
 
         ssize_t send_result = mq_send (mq_request, (char *) &req_message, sizeof (req_message), NULL);
         
-        // giving error if it failed to send message
+        // giving error message 7 if it failed to send message
         if (send_result == -1) {
             perror("mq_send() failed");
             fprintf(stderr, "[%d] Failed to send request #%d\n", 
@@ -115,13 +115,13 @@ int main (int argc, char * argv[])
     }
     //  * close the message queue
     mq_close (mq_request);
-    // send error message if it failed
+    // send error message 8 if it failed
     if (mq_close(mq_request) == -1) {
     perror("client's mq_close() failed");
     exit(8);
-    // Decide whether to exit or continue cleanup
+    // decide whether to exit or continue cleanup
     } else {
         fprintf(stderr, "[%d] mq_request closed\n", getpid());
     }
-    return (0);
+    return (0); // slay thyself
 }

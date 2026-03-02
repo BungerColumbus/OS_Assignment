@@ -54,15 +54,40 @@ getattr (mqd_t mq_fd)
 }
 
 void cleanup_and_exit(int sig) {  //Cleanup function in case of input during program run
-
-    kill(0, SIGKILL); //Kill all children
-    
-    mq_unlink(client2dealer_name);  //Destroy all queues
-    mq_unlink(worker2dealer_name);
-    mq_unlink(dealer2worker1_name);
-    mq_unlink(dealer2worker2_name);
+    cleanup();
     _exit(0);
 }
+
+void cleanup(void){ //Generic cleanup function for exit
+    kill(0, SIGKILL); //Kill all children
+    
+    if(mq_unlink(worker2dealer_name) == -1){  //Destroy all queues
+      if(errno = ENOENT){
+        perror("Queue nonexistent");
+      }
+      perror("Error unlinking w2d queue");
+    };  
+    if(mq_unlink(client2dealer_name) == -1){
+      perror("Error unlinking c2d queue");
+      if(errno = ENOENT){
+        perror("Queue nonexistent");
+      }
+    };
+    if(mq_unlink(dealer2worker1_name) == -1){
+      perror("Error unlinking d2w1 queue");
+      if(errno = ENOENT){
+        perror("Queue nonexistent");
+      }
+    };
+    if(mq_unlink(dealer2worker2_name) == -1){
+      perror("Error unlinking d2w2 queue");
+      if(errno = ENOENT){
+        perror("Queue nonexistent");
+      }
+    };
+
+}
+
 
 int main (int argc, char * argv[])
 {
@@ -70,6 +95,9 @@ int main (int argc, char * argv[])
   {
     fprintf (stderr, "%s: invalid arguments\n", argv[0]);
   }
+
+  signal(SIGINT, cleanup_and_exit);
+  atexit(cleanup);
   
 
   // TODO:
@@ -318,6 +346,7 @@ int main (int argc, char * argv[])
 
 
     //  * clean up the message queues (see message_queue_test())
+    //We close the message queues. The unlinking happens atexit
 
 
     if (mq_close(mq_fd_rep) == -1) {
@@ -327,13 +356,6 @@ int main (int argc, char * argv[])
           perror("mq_close failed");
       }
   }
-    if(mq_unlink(worker2dealer_name) == -1){
-      if(errno = ENOENT){
-        perror("Queue nonexistent");
-      }
-      perror("Error unlinking w2d queue");
-    };
-
     if (mq_close(mq_fd_req) == -1) {
       if (errno == EBADF) {
           printf("Error: Attempted to close an invalid or already-closed descriptor c2d.\n");
@@ -341,14 +363,6 @@ int main (int argc, char * argv[])
           perror("mq_close failed");
       }
   }
-    if(mq_unlink(client2dealer_name) == -1){
-      perror("Error unlinking c2d queue");
-      if(errno = ENOENT){
-        perror("Queue nonexistent");
-      }
-    };
-
-
     if (mq_close(mq_fd_S1) == -1) {
     if (errno == EBADF) {
         printf("Error: Attempted to close an invalid or already-closed descriptor d2w1.\n");
@@ -356,14 +370,6 @@ int main (int argc, char * argv[])
         perror("mq_close failed");
     }
   }
-    if(mq_unlink(dealer2worker1_name) == -1){
-      perror("Error unlinking d2w1 queue");
-      if(errno = ENOENT){
-        perror("Queue nonexistent");
-      }
-    };
-
- 
     if (mq_close(mq_fd_S2) == -1) {
     if (errno == EBADF) {
         printf("Error: Attempted to close an invalid or already-closed descriptor d2w2.\n");
@@ -371,12 +377,6 @@ int main (int argc, char * argv[])
         perror("mq_close failed");
     }
   }
-    if(mq_unlink(dealer2worker2_name) == -1){
-      perror("Error unlinking d2w2 queue");
-      if(errno = ENOENT){
-        perror("Queue nonexistent");
-      }
-    };
     }
 
     // Important notice: make sure that the names of the message queues

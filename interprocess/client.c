@@ -105,6 +105,7 @@ int main (int argc, char * argv[])
             perror("mq_send() failed");
             fprintf(stderr, "[%d] Failed to send request #%d\n", 
             getpid(), request_count);
+            exit(7);
         // says what client sent what
         } else {
             fprintf(stderr, "[%d] Sent %zd bytes\n", getpid(), send_result);
@@ -117,7 +118,7 @@ int main (int argc, char * argv[])
     // send error message if it failed
     if (mq_close(mq_request) == -1) {
     perror("client's mq_close() failed");
-    exit(7);
+    exit(8);
     // Decide whether to exit or continue cleanup
     } else {
         fprintf(stderr, "[%d] mq_request closed\n", getpid());

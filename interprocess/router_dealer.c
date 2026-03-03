@@ -348,30 +348,31 @@ int main (int argc, char * argv[])
   struct timespec ts;
   while(reqCounter > 0) {
     clock_gettime(CLOCK_REALTIME, &ts);
-    ts.tv_sec += 2; // 2-second safety timeout
+    ts.tv_sec += 1; 
 
-    if (mq_timedreceive(mq_fd_rep, (char *)&rsp, sizeof(rsp), NULL, &ts) == -1) {
+    if (mq_timedreceive(mq_fd_rep, (char *)&rsp, sizeof(rsp), NULL, &ts) != -1) {
+        fprintf(stdout, "%d --> %d\n", rsp.req_id, rsp.result);
+        fflush(stdout);
+        reqCounter--;
+    } else {
         if (errno == ETIMEDOUT) {
-            fprintf(stderr, "Worker failed to respond. --> Skipped over\n");
+            fprintf(stderr, "Timed out waiting for a worker. Moving to shutdown.\n");
             break; 
         }
     }
-    reqCounter--;
-    fprintf(stdout, "%d --> %d\n", rsp.req_id, rsp.result);
-    fflush(stdout);
-  }
+}
 
     //fprintf(stderr, "REQ COUNTER %d \n", reqCounter);
-
+    int nrworkers = sizeof(workers)/sizeof(workers[0]);
     //Having finished all operations with the workers, we choose to terminate them
-    for (int i = 0; i < sizeof(workers); i++){
+    for (int i = 0; i < sizeof(nrworkers); i++){
       if(workers[i] > 0){
         kill(workers[i], SIGTERM);
       }
     }
 
     //We wait for the processes to close their queues and exit
-    for (int i = 0; i < sizeof(workers); i++) {
+    for (int i = 0; i < sizeof(nrworkers); i++) {
       waitpid(workers[i], NULL, 0);
     }
 

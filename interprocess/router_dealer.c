@@ -365,14 +365,14 @@ int main (int argc, char * argv[])
     //fprintf(stderr, "REQ COUNTER %d \n", reqCounter);
     int nrworkers = sizeof(workers)/sizeof(workers[0]);
     //Having finished all operations with the workers, we choose to terminate them
-    for (int i = 0; i < sizeof(nrworkers); i++){
+    for (int i = 0; i < nrworkers; i++){
       if(workers[i] > 0){
         kill(workers[i], SIGTERM);
       }
     }
 
     //We wait for the processes to close their queues and exit
-    for (int i = 0; i < sizeof(nrworkers); i++) {
+    for (int i = 0; i < nrworkers; i++) {
       waitpid(workers[i], NULL, 0);
     }
 

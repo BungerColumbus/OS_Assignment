@@ -59,26 +59,26 @@ void cleanup(void){ //Generic cleanup function for exit
     kill(0, SIGKILL); //Kill all children
     
     if(mq_unlink(worker2dealer_name) == -1){  //Destroy all queues
-      if(errno = ENOENT){
+      if(errno == ENOENT){
         perror("Queue nonexistent");
       }
       perror("Error unlinking w2d queue");
     };  
     if(mq_unlink(client2dealer_name) == -1){
       perror("Error unlinking c2d queue");
-      if(errno = ENOENT){
+      if(errno == ENOENT){
         perror("Queue nonexistent");
       }
     };
     if(mq_unlink(dealer2worker1_name) == -1){
       perror("Error unlinking d2w1 queue");
-      if(errno = ENOENT){
+      if(errno == ENOENT){
         perror("Queue nonexistent");
       }
     };
     if(mq_unlink(dealer2worker2_name) == -1){
       perror("Error unlinking d2w2 queue");
-      if(errno = ENOENT){
+      if(errno == ENOENT){
         perror("Queue nonexistent");
       }
     };
@@ -138,6 +138,9 @@ int main (int argc, char * argv[])
   //Dealer can only read from the queue in which the client sends
   attr.mq_msgsize = sizeof(REQ_MESSAGE);
   mq_fd_req = mq_open (client2dealer_name, O_RDONLY | O_CREAT | O_EXCL, 0600, &attr); //Opening a queue for requests
+  if (mq_fd_req == -1){
+    perror("Cannot create client queue");
+  }
   
   //Dealer can only read from the response queue in which the workers send
   attr.mq_msgsize = sizeof(RSP_MESSAGE);
@@ -190,11 +193,7 @@ int main (int argc, char * argv[])
       }
 
       if(processID == 0){
-        char w1fd_str[12]; // Buffer to hold number
-        sprintf(w1fd_str, "%d", mq_fd_S1); // Convert int to string 
-        char rsfd_str[12]; // Buffer to hold number
-        sprintf(rsfd_str, "%d", mq_fd_rep); // Convert int to string 
-        execlp(worker1Path, worker1Path, w1fd_str, rsfd_str, NULL);
+        execlp(worker1Path, worker1Path, dealer2worker1_name, worker2dealer_name, NULL);
         
         perror("execlp failed w1");  //The program should never reach here
         exit(2);
@@ -219,7 +218,7 @@ int main (int argc, char * argv[])
         sprintf(w2fd_str, "%d", mq_fd_S2); // Convert int to string ("3")
         char rsfd_str[12]; // Buffer to hold number
         sprintf(rsfd_str, "%d", mq_fd_rep); // Convert int to string 
-        execlp(worker2Path, worker2Path, w2fd_str, rsfd_str, NULL);
+        execlp(worker2Path, worker2Path, dealer2worker2_name, worker2dealer_name, NULL);
         
         perror("execlp failed w2");  //The program should never reach here
         exit(2);
@@ -257,7 +256,7 @@ int main (int argc, char * argv[])
 
     while(waitpid(clientPID, &status, WNOHANG) == 0 || attr.mq_curmsgs > 0){ //Handle request and response messages while client is active
 
-    ret = poll(fds, 2, -1);
+    ret = poll(fds, 2, 10000);
 
     if (ret  == -1){
       perror("Poll failed");
@@ -288,7 +287,7 @@ int main (int argc, char * argv[])
           req.job_id, req.service_id, req.data);
       ser.data = req.data;
       ser.req_id = req.job_id;
-
+      fprintf(stderr, "Sending to workers...");
       if(req.service_id == 1){
         if (mq_send(mq_fd_S1, (char *) &ser, sizeof(SERVICE_MESSAGE), 0) == -1) {
           if (errno == EAGAIN) {
@@ -312,6 +311,7 @@ int main (int argc, char * argv[])
 }
       }
       reqCounter++;
+      fprintf(stderr, "reqCounter: %d \n", reqCounter);
     }
 
     if (fds[1].revents & POLLIN){ //Handle a message in the response queue
@@ -326,22 +326,35 @@ int main (int argc, char * argv[])
               perror("mq_receive failed");
           }
       }
-      fprintf(stdout, "%d --> %d", rsp.req_id, rsp.result);
+      fprintf(stderr, "%d --> %d\n", rsp.req_id, rsp.result);
+      fprintf(stdout, "%d --> %d\n", rsp.req_id, rsp.result);
+      fflush(stdout);
       reqCounter--;
+      fprintf(stderr, "Req counter %d\n", reqCounter);
     }
 
     if(mq_getattr(mq_fd_req, &attr) == -1){
       perror("Response queue attribute detection error");
     } 
       
-
+    fprintf(stderr, "GOT TO END OF WHILE \n");
     }
+
+    fprintf(stderr, "RIGHT AFTER WHILE \n");
 
     while(reqCounter > 0){  //Finish up the requests left after the client finished
+      fprintf(stderr, "Got to the sending responses\n");
       mq_receive(mq_fd_rep, (char *) &rsp, sizeof(RSP_MESSAGE), NULL);
-      fprintf(stdout, "%d --> %d", rsp.req_id, rsp.result);
+      fprintf(stderr, "Sending responses\n");
+      fprintf(stderr, "ERROR %d --> %d\n", rsp.req_id, rsp.result);
+
+      fprintf(stdout, "%d --> %d\n", rsp.req_id, rsp.result);
+      fflush(stdout);
+
       reqCounter--;
     }
+
+    fprintf(stderr, "REQ COUNTER %d \n", reqCounter);
 
     //Having finished all operations with the workers, we choose to terminate them
     for (int i = 0; i < sizeof(workers); i++){

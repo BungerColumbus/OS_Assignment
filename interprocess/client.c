@@ -114,7 +114,6 @@ int main (int argc, char * argv[])
         rsleep(100000);  // 100ms
     }
     //  * close the message queue
-    mq_close (mq_request);
     // send error message 8 if it failed
     if (mq_close(mq_request) == -1) {
     perror("client's mq_close() failed");

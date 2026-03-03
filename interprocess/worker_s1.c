@@ -68,10 +68,11 @@ int main (int argc, char * argv[])
     //parent sends the shutdown signal
     signal(SIGTERM, handle_shutdown);
 
-    while(1) 
+    while(keep_working) 
     {
     //read from the s1 message queue the new job to do
         bytes_read = mq_receive(dealer2worker, (char *)&message, sizeof(message), NULL);
+        fprintf(stderr, "%d \n", message.data);
         if (bytes_read == -1) 
         {
             if (bytes_read == -1)
@@ -92,6 +93,7 @@ int main (int argc, char * argv[])
         response.req_id = message.req_id;
     // write the results to the Response message queue
         bytes_sent = mq_send (worker2dealer, (char *) &response, sizeof (response), 0);  
+        fprintf(stderr, "Result %d", response.result);
         if (bytes_sent == -1)
         {
             perror("mq_send failure in worker2dealer queue, s1\n");
@@ -142,4 +144,8 @@ static void rsleep (int t)
 void handle_shutdown(int sig)
 {
     keep_working = 0;
+    mq_close(worker2dealer);
+    mq_close(dealer2worker);
+    fprintf(stderr, "Shutting Down process %d \n", getpid());
+    exit(0);
 }

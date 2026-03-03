@@ -86,8 +86,8 @@ int main (int argc, char * argv[])
         request_count++;
 
         // print the request i with its params and from which client it came.
-        fprintf(stderr, "[%d] Request #%d: job=%d, data=%d, service=%d\n",
-            getpid(), request_count, req.job, req.data, req.service);
+        //fprintf(stderr, "[%d] Request #%d: job=%d, data=%d, service=%d\n",
+        //    getpid(), request_count, req.job, req.data, req.service);
 
 
         // who is the mq_des
@@ -108,7 +108,7 @@ int main (int argc, char * argv[])
             exit(7);
         // says what client sent what
         } else {
-            fprintf(stderr, "[%d] Sent %zd bytes\n", getpid(), send_result);
+         //   fprintf(stderr, "[%d] Sent %zd bytes\n", getpid(), send_result);
         }
         // delay to avoid flooding
         rsleep(100000);  // 100ms
@@ -120,7 +120,7 @@ int main (int argc, char * argv[])
     exit(8);
     // decide whether to exit or continue cleanup
     } else {
-        fprintf(stderr, "[%d] mq_request closed\n", getpid());
+    //    fprintf(stderr, "[%d] mq_request closed\n", getpid());
     }
     return (0); // slay thyself
 }

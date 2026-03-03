@@ -248,7 +248,7 @@ int main (int argc, char * argv[])
     }
 
     if (ret == 0){
-      perror("Timeout on poll");
+    //  perror("Timeout on poll");
       //exit(5);    
     }
 
@@ -264,13 +264,13 @@ int main (int argc, char * argv[])
     }
 
     if (ret == 0){
-      perror("Timeout on poll");
+    //  perror("Timeout on poll");
       //exit(5);   
     } 
     
 
     if(fds[0].revents & POLLIN){    //Handle a message in the request queue
-      fprintf (stderr, "                                   request: receiving...\n");
+      //fprintf (stderr, "                                   request: receiving...\n");
       ssize_t bytes_read = mq_receive (mq_fd_req, (char *) &req, sizeof (req), NULL);
 
       if (bytes_read == -1) {
@@ -283,11 +283,11 @@ int main (int argc, char * argv[])
           }
       }
 
-      fprintf (stderr, "                                   request: received: %d, %d, '%d'\n",
-          req.job_id, req.service_id, req.data);
+      //fprintf (stderr, "                                   request: received: %d, %d, '%d'\n",
+      //    req.job_id, req.service_id, req.data);
       ser.data = req.data;
       ser.req_id = req.job_id;
-      fprintf(stderr, "Sending to workers...");
+      //fprintf(stderr, "Sending to workers...");
       if(req.service_id == 1){
         if (mq_send(mq_fd_S1, (char *) &ser, sizeof(SERVICE_MESSAGE), 0) == -1) {
           if (errno == EAGAIN) {
@@ -311,7 +311,7 @@ int main (int argc, char * argv[])
 }
       }
       reqCounter++;
-      fprintf(stderr, "reqCounter: %d \n", reqCounter);
+      //fprintf(stderr, "reqCounter: %d \n", reqCounter);
     }
 
     if (fds[1].revents & POLLIN){ //Handle a message in the response queue
@@ -326,21 +326,21 @@ int main (int argc, char * argv[])
               perror("mq_receive failed");
           }
       }
-      fprintf(stderr, "%d --> %d\n", rsp.req_id, rsp.result);
+      //fprintf(stderr, "%d --> %d\n", rsp.req_id, rsp.result);
       fprintf(stdout, "%d --> %d\n", rsp.req_id, rsp.result);
       fflush(stdout);
       reqCounter--;
-      fprintf(stderr, "Req counter %d\n", reqCounter);
+      //fprintf(stderr, "Req counter %d\n", reqCounter);
     }
 
     if(mq_getattr(mq_fd_req, &attr) == -1){
       perror("Response queue attribute detection error");
     } 
       
-    fprintf(stderr, "GOT TO END OF WHILE \n");
+    //fprintf(stderr, "GOT TO END OF WHILE \n");
     }
 
-    fprintf(stderr, "RIGHT AFTER WHILE \n");
+    //fprintf(stderr, "RIGHT AFTER WHILE \n");
 
     while(reqCounter > 0){  //Finish up the requests left after the client finished
       fprintf(stderr, "Got to the sending responses\n");
@@ -354,7 +354,7 @@ int main (int argc, char * argv[])
       reqCounter--;
     }
 
-    fprintf(stderr, "REQ COUNTER %d \n", reqCounter);
+    //fprintf(stderr, "REQ COUNTER %d \n", reqCounter);
 
     //Having finished all operations with the workers, we choose to terminate them
     for (int i = 0; i < sizeof(workers); i++){

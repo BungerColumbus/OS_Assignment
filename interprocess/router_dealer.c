@@ -13,7 +13,7 @@
  * - Report quality
  * - Deadlock analysis
  */
-
+#define _POSIX_C_SOURCE 200112L  // Unlocks clock_gettime and CLOCK_REALTIME for mq_timed receive
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -29,7 +29,9 @@
 
 #include "settings.h"  
 #include "messages.h"
-#include <linux/time.h>
+#include <time.h>
+#include <sys/time.h>
+
 
 char client2dealer_name[30];
 char dealer2worker1_name[30];
@@ -350,7 +352,7 @@ int main (int argc, char * argv[])
 
     if (mq_timedreceive(mq_fd_rep, (char *)&rsp, sizeof(rsp), NULL, &ts) == -1) {
         if (errno == ETIMEDOUT) {
-            fprintf(stderr, "Deadlock averted: Worker failed to respond.\n");
+            fprintf(stderr, "Worker failed to respond. --> Skipped over\n");
             break; 
         }
     }

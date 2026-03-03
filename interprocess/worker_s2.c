@@ -72,20 +72,20 @@ int main (int argc, char * argv[])
     while(keep_working) 
     {
     //read from the s2 message queue the new job to do
-        bytes_read = mq_receive(dealer2worker, (char *)&message, sizeof(message), NULL);
-        if (bytes_read == -1) 
+            bytes_read = mq_receive(dealer2worker, (char *)&message, sizeof(message), NULL);
+    
+    if (bytes_read == -1) 
+    {
+        if (errno == EINTR) // This happens when SIGTERM hits
         {
-            if (bytes_read == -1)
-            {
-                //has received signal to exit loop
-                if (errno == EINTR && !keep_working)
-                {
-                    break;  
-                }
-                perror("mq_receive failure in s2");
-                exit(4);
+            if (!keep_working) {
+                break; // Jump out of while loop to reach mq_close()
             }
+            continue; // False alarm, keep working
         }
+        perror("mq_receive failure");
+        exit(4);
+    }
     // wait a random amount of time (e.g. rsleep(10000);)
         rsleep(10000);
     // do the job 

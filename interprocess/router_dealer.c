@@ -128,6 +128,7 @@ int main (int argc, char * argv[])
 
   int status;
   int reqCounter = 0;
+  bool client_alive = true;
   struct mq_attr attr; 
   attr.mq_flags = 0;//Instantiating structure of attributes for message queues
 
@@ -140,19 +141,19 @@ int main (int argc, char * argv[])
 
   //Dealer can only read from the queue in which the client sends
   attr.mq_msgsize = sizeof(REQ_MESSAGE);
-  mq_fd_req = mq_open (client2dealer_name, O_RDONLY | O_CREAT | O_EXCL, 0600, &attr); //Opening a queue for requests
+  mq_fd_req = mq_open (client2dealer_name, O_RDONLY | O_CREAT | O_EXCL| O_NONBLOCK, 0600, &attr); //Opening a queue for requests
   if (mq_fd_req == -1){
     perror("Cannot create client queue");
   }
   
   //Dealer can only read from the response queue in which the workers send
   attr.mq_msgsize = sizeof(RSP_MESSAGE);
-  mq_fd_rep = mq_open (worker2dealer_name, O_RDONLY | O_CREAT | O_EXCL, 0600, &attr); //Opening a queue for worker responses
+  mq_fd_rep = mq_open (worker2dealer_name, O_RDONLY | O_CREAT | O_EXCL | O_NONBLOCK, 0600, &attr); //Opening a queue for worker responses
 
   //Dealer can only write in the queue towards the workers, sending services their way
   attr.mq_msgsize = sizeof(SERVICE_MESSAGE);
-  mq_fd_S1 = mq_open(dealer2worker1_name, O_WRONLY | O_CREAT | O_EXCL, 0600, &attr);  //Opening queue for service 1 tasks
-  mq_fd_S2 = mq_open(dealer2worker2_name, O_WRONLY | O_CREAT | O_EXCL, 0600, &attr);  //Opening queue for service 2 tasks
+  mq_fd_S1 = mq_open(dealer2worker1_name, O_WRONLY | O_CREAT | O_EXCL | O_NONBLOCK, 0600, &attr);  //Opening queue for service 1 tasks
+  mq_fd_S2 = mq_open(dealer2worker2_name, O_WRONLY | O_CREAT | O_EXCL | O_NONBLOCK, 0600, &attr);  //Opening queue for service 2 tasks
 
   //Debugging function, making sure all queues are defined as we want them
   getattr(mq_fd_rep);
@@ -234,16 +235,19 @@ int main (int argc, char * argv[])
     
     //We will try implementing the polling method. 
 
-    struct pollfd fds[2];
+    struct pollfd fds[4];
     int ret;
+    bool has_pending_S1 = false;
+    bool has_pending_S2 = false;
+    SERVICE_MESSAGE pending_S1, pending_S2; //buffer in case message doesn't work
 
-    fds[0].fd = mq_fd_req;
-    fds[0].events = POLLIN;
-    
-    fds[1].fd = mq_fd_rep;
-    fds[1].events = POLLIN;
 
-    ret = poll(fds, 2, -1);
+    fds[0].fd = mq_fd_req; fds[0].events = (client_alive && !has_pending_S1 && !has_pending_S2) ? POLLIN : 0; // Only read if sending to worker queue will work
+    fds[1].fd = mq_fd_rep; fds[1].events = POLLIN;                 // Always listen for responses
+    fds[2].fd = mq_fd_S1;  fds[2].events = has_pending_S1 ? POLLOUT : 0; // Only check space if a message needs to be resent
+    fds[3].fd = mq_fd_S2;  fds[3].events = has_pending_S2 ? POLLOUT : 0; 
+
+    ret = poll(fds, 4, 1000);
 
     if (ret  == -1){
       perror("Poll failed");
@@ -257,23 +261,86 @@ int main (int argc, char * argv[])
 
 
 
-    while(waitpid(clientPID, &status, WNOHANG) == 0 || attr.mq_curmsgs > 0){ //Handle request and response messages while client is active
+    while(client_alive|| reqCounter > 0|| has_pending_S1 || has_pending_S2){ //Handle request and response messages while client is active
 
-    ret = poll(fds, 2, 10000);
+    if (client_alive) {
+        int r = waitpid(clientPID, &status, WNOHANG);
+        if (r > 0 || (r == -1 && errno == ECHILD)) {
+            client_alive = false;
+            fprintf(stderr, "Dealer: Client finished. Counter: %d\n", reqCounter);
+        }
+    }
+
+    // 2. THE CRITICAL CHECK: Exit BEFORE polling if everything is done
+    if (!client_alive && reqCounter <= 0 && !has_pending_S1 && !has_pending_S2) {
+        fprintf(stderr, "Dealer: All work complete. Exiting loop.\n");
+        break; 
+    }
+
+    // Check if client is still running
+if (client_alive) {
+        int r = waitpid(clientPID, &status, WNOHANG);
+        if (r > 0 || (r == -1 && errno == ECHILD)) {
+            client_alive = false;
+            fprintf(stderr, "Dealer: Client finished. Draining %d jobs...\n", reqCounter);
+            // If no jobs are left, exit the loop immediately
+            if (reqCounter <= 0 && !has_pending_S1 && !has_pending_S2) {
+                break; 
+            }
+        }
+    }
+    fds[0].events = (client_alive && !has_pending_S1 && !has_pending_S2) ? POLLIN : 0; // Reinitialize every iteration
+    fds[1].events = POLLIN; 
+    fds[2].events = has_pending_S1 ? POLLOUT : 0; 
+    fds[3].events = has_pending_S2 ? POLLOUT : 0; 
+
+    ret = poll(fds, 4, 1000);
 
     if (ret  == -1){
+      if (errno == EINTR) continue; // Restart if interrupted by signal
       perror("Poll failed");
       exit(4);
     }
 
-    if (ret == 0){
-    //  perror("Timeout on poll");
-      //exit(5);   
-    } 
-    
+if (ret == 0) {
+        // If there is a timeout, send the program back to wait for another 10 seconds before checking the loop again
+        //continue;
+        perror("Timeout");
+    }
+  if(ret > 0){  
+    fprintf(stderr, "entered ret > 0 \n");
+    if (fds[1].revents & POLLIN){ //Handle a message in the response queue
+    fprintf(stderr, "DEBUG: Attempting to receive from workers...\n"); // Add this
+    ssize_t bytes_read = mq_receive(mq_fd_rep, (char *) &rsp, sizeof(RSP_MESSAGE), NULL);
+    fprintf(stderr, "DEBUG: Receive successful!\n"); // Add this
 
-    if(fds[0].revents & POLLIN){    //Handle a message in the request queue
-      //fprintf (stderr, "                                   request: receiving...\n");
+    if (bytes_read > 0) { // <--- ADD THIS GUARD
+        fprintf(stdout, "%d --> %d\n", rsp.req_id, rsp.result);
+        fflush(stdout);
+        reqCounter--;
+    } else if (bytes_read == -1) {
+        if (errno != EAGAIN && errno != EINTR) {
+            perror("mq_receive failed");
+        }
+    }
+}
+
+    // Retry message sending to S1
+    if (has_pending_S1 && (fds[2].revents & POLLOUT)) {
+        if (mq_send(mq_fd_S1, (char *)&pending_S1, sizeof(pending_S1), 0) == 0) {
+            has_pending_S1 = false; 
+        }
+    }
+
+    // Retry message sending to S2
+    if (has_pending_S2 && (fds[3].revents & POLLOUT)) {
+        if (mq_send(mq_fd_S2, (char *)&pending_S2, sizeof(pending_S2), 0) == 0) {
+            has_pending_S2 = false;
+        }
+    }
+
+    if(!has_pending_S1 && !has_pending_S2 && (fds[0].revents & POLLIN)){    //Handle a message in the request queue
+    
       ssize_t bytes_read = mq_receive (mq_fd_req, (char *) &req, sizeof (req), NULL);
 
       if (bytes_read == -1) {
@@ -286,96 +353,80 @@ int main (int argc, char * argv[])
           }
       }
 
-      //fprintf (stderr, "                                   request: received: %d, %d, '%d'\n",
-      //    req.job_id, req.service_id, req.data);
-      ser.data = req.data;
-      ser.req_id = req.job_id;
-      //fprintf(stderr, "Sending to workers...");
-      if(req.service_id == 1){
-        if (mq_send(mq_fd_S1, (char *) &ser, sizeof(SERVICE_MESSAGE), 0) == -1) {
-          if (errno == EAGAIN) {
-              perror("Queue full");
-          } else if (errno == EMSGSIZE) {
-              perror("Message too large");
+
+     if (bytes_read > 0) { // Ensure we actually received a message
+          ser.data = req.data;
+          ser.req_id = req.job_id;
+          bool sent_or_buffered = false;
+
+          if(req.service_id == 1){
+              if (mq_send(mq_fd_S1, (char *) &ser, sizeof(SERVICE_MESSAGE), 0) == 0) {
+                  sent_or_buffered = true; 
+              } else if (errno == EAGAIN) {
+                  has_pending_S1 = true;
+                  pending_S1 = ser; //In case message cannot be send cause of a full queue, it is placed in a buffer
+                  sent_or_buffered = true;
+                  perror("Queue full");
+              } else if (errno == EMSGSIZE) {
+                  perror("Message too large");
+              } else {
+                  perror("mq_send failed");
+              }
           } else {
-              perror("mq_send failed");
+              if (mq_send(mq_fd_S2, (char *)&ser, sizeof(ser), 0) == 0) {
+                  sent_or_buffered = true;
+              } else if (errno == EAGAIN) {
+                  has_pending_S2 = true; //In case message cannot be sent cause of a full queue, it is placed in a buffer
+                  pending_S2 = ser;
+                  sent_or_buffered = true;
+                  perror("Queue full");
+              } else if (errno == EMSGSIZE) {
+                  perror("Message too large");
+              } else {
+                  perror("mq_send failed");
+              }
           }
-}
-        
-      } else {
-        if (mq_send(mq_fd_S2, (char *) &ser, sizeof(SERVICE_MESSAGE), 0) == -1) {
-          if (errno == EAGAIN) {
-              perror("Queue full");
-          } else if (errno == EMSGSIZE) {
-              perror("Message too large");
-          } else {
-              perror("mq_send failed");
+
+          if(sent_or_buffered){
+              reqCounter++;
           }
-}
       }
-      reqCounter++;
       //fprintf(stderr, "reqCounter: %d \n", reqCounter);
     }
-
-    if (fds[1].revents & POLLIN){ //Handle a message in the response queue
-      ssize_t bytes_read = mq_receive(mq_fd_rep, (char *) &rsp, sizeof(RSP_MESSAGE), NULL);
-
-      if (bytes_read == -1) {
-          if (errno == EAGAIN) {
-              fprintf(stderr,"Nothing to read at worker2dealer queue");
-          } else if (errno == EINTR) {
-              fprintf(stderr, "Receive from worker was interrupted by arbitrary signal.\n");
-          } else {
-              perror("mq_receive failed");
-          }
-      }
-      //fprintf(stderr, "%d --> %d\n", rsp.req_id, rsp.result);
-      fprintf(stdout, "%d --> %d\n", rsp.req_id, rsp.result);
-      fflush(stdout);
-      reqCounter--;
-      //fprintf(stderr, "Req counter %d\n", reqCounter);
+  }
+// 1. Check for exit every iteration, regardless of poll outcome
+    if (!client_alive && reqCounter <= 0 && !has_pending_S1 && !has_pending_S2) {
+        fprintf(stderr, "Dealer: All conditions met. Exiting loop.\n");
+        break; 
     }
 
-    if(mq_getattr(mq_fd_req, &attr) == -1){
-      perror("Response queue attribute detection error");
-    } 
-      
-    //fprintf(stderr, "GOT TO END OF WHILE \n");
+    // 2. Debug state (this will now actually print during the hang)
+    if (!client_alive) {
+        fprintf(stderr, "[DEBUG] Loop state: reqCounter=%d, S1_pend=%d, S2_pend=%d\n", 
+                reqCounter, has_pending_S1, has_pending_S2);
+    }
+
     }
 
     //fprintf(stderr, "RIGHT AFTER WHILE \n");
 
-  struct timespec ts;
-  while(reqCounter > 0) {
-    clock_gettime(CLOCK_REALTIME, &ts);
-    ts.tv_sec += 1; 
-
-    if (mq_timedreceive(mq_fd_rep, (char *)&rsp, sizeof(rsp), NULL, &ts) != -1) {
-        fprintf(stdout, "%d --> %d\n", rsp.req_id, rsp.result);
-        fflush(stdout);
-        reqCounter--;
-    } else {
-        if (errno == ETIMEDOUT) {
-            fprintf(stderr, "Timed out waiting for a worker. Moving to shutdown.\n");
-            break; 
+    //fprintf(stderr, "REQ COUNTER %d \n", reqCounter);
+    // 1. Send SIGTERM to everyone first
+    int total_workers = N_SERV1 + N_SERV2;
+    for (int i = 0; i < total_workers; i++) {
+        if (workers[i] > 0) {
+            kill(workers[i], SIGTERM);
         }
     }
-}
 
-    //fprintf(stderr, "REQ COUNTER %d \n", reqCounter);
-    int nrworkers = sizeof(workers)/sizeof(workers[0]);
-    //Having finished all operations with the workers, we choose to terminate them
-    for (int i = 0; i < nrworkers; i++){
-      if(workers[i] > 0){
-        kill(workers[i], SIGTERM);
-      }
+    // 2. NOW wait for them to actually finish
+    for (int i = 0; i < total_workers; i++) {
+        if (workers[i] > 0) {
+            fprintf(stderr, "Dealer: Waiting for worker %d (PID %d)...\n", i, workers[i]);
+            waitpid(workers[i], NULL, 0); 
+            fprintf(stderr, "Dealer: Worker %d (PID %d) has FULLY exited.\n", i, workers[i]);
+        }
     }
-
-    //We wait for the processes to close their queues and exit
-    for (int i = 0; i < nrworkers; i++) {
-      waitpid(workers[i], NULL, 0);
-    }
-
 
     //  * clean up the message queues (see message_queue_test())
     //We close the message queues. The unlinking happens atexit

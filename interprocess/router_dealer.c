@@ -29,6 +29,7 @@
 
 #include "settings.h"  
 #include "messages.h"
+#include <linux/time.h>
 
 char client2dealer_name[30];
 char dealer2worker1_name[30];
@@ -342,17 +343,21 @@ int main (int argc, char * argv[])
 
     //fprintf(stderr, "RIGHT AFTER WHILE \n");
 
-    while(reqCounter > 0){  //Finish up the requests left after the client finished
-      fprintf(stderr, "Got to the sending responses\n");
-      mq_receive(mq_fd_rep, (char *) &rsp, sizeof(RSP_MESSAGE), NULL);
-      fprintf(stderr, "Sending responses\n");
-      fprintf(stderr, "ERROR %d --> %d\n", rsp.req_id, rsp.result);
+  struct timespec ts;
+  while(reqCounter > 0) {
+    clock_gettime(CLOCK_REALTIME, &ts);
+    ts.tv_sec += 2; // 2-second safety timeout
 
-      fprintf(stdout, "%d --> %d\n", rsp.req_id, rsp.result);
-      fflush(stdout);
-
-      reqCounter--;
+    if (mq_timedreceive(mq_fd_rep, (char *)&rsp, sizeof(rsp), NULL, &ts) == -1) {
+        if (errno == ETIMEDOUT) {
+            fprintf(stderr, "Deadlock averted: Worker failed to respond.\n");
+            break; 
+        }
     }
+    reqCounter--;
+    fprintf(stdout, "%d --> %d\n", rsp.req_id, rsp.result);
+    fflush(stdout);
+  }
 
     //fprintf(stderr, "REQ COUNTER %d \n", reqCounter);
 

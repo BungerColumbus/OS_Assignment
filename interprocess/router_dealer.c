@@ -185,48 +185,92 @@ int main (int argc, char * argv[])
 
       //Assign worker 1 processes their main function. There should be NSERV1 of them
       //First we create NSERV1 of them. Only the parent process can do that
-      for (int i=0; i < N_SERV1; i++){
-        if (processID > 0){
-          processID = fork();
-          workers[i]=processID;
-        }
-      }
-      if(processID < 0){
+      // for (int i=0; i < N_SERV1; i++){
+      //   if (processID > 0){
+      //     processID = fork();
+      //     workers[i]=processID;
+      //   }
+      // }
+      // if(processID < 0){
+      //   perror("worker fork() failed");  //Check if the fork failed
+      //   exit(1);
+      // }
+
+      // if(processID == 0){
+      //   execlp(worker1Path, worker1Path, dealer2worker1_name, worker2dealer_name, NULL);
+        
+      //   perror("execlp failed w1");  //The program should never reach here
+      //   exit(2);
+      // }
+
+      for (int i=0; i < N_SERV1; i++) {
+    if (processID > 0) {
+        processID = fork();
+        if(processID < 0){
         perror("worker fork() failed");  //Check if the fork failed
         exit(1);
       }
-
-      if(processID == 0){
+        if (processID == 0) { 
+            // Child logic MUST be here to prevent loop fall-through
         execlp(worker1Path, worker1Path, dealer2worker1_name, worker2dealer_name, NULL);
-        
         perror("execlp failed w1");  //The program should never reach here
         exit(2);
-      }
+        }
+        workers[i] = processID; // Parent records PID
+    }
+}
 
 
       //Assign worker 2 processes their main function. There should be NSERV2 of them
       //First we create NSERV2 of them. Only the parent process can do that
-      for (int i=0; i < N_SERV2; i++){
-        if (processID > 0){
-          processID = fork();
-          workers[i + N_SERV1] = processID;
-        }
-      }
-      if(processID < 0){
-        perror("worker fork() failed");  //Check if the fork failed
-        exit(1);
-      }
+      // for (int i=0; i < N_SERV2; i++){
+      //   if (processID > 0){
+      //     processID = fork();
+      //     workers[i + N_SERV1] = processID;
+      //   }
+      // }
+      // if(processID < 0){
+      //   perror("worker fork() failed");  //Check if the fork failed
+      //   exit(1);
+      // }
 
-      if(processID == 0){
-        char w2fd_str[12]; // Buffer to hold  number
-        sprintf(w2fd_str, "%d", mq_fd_S2); // Convert int to string ("3")
-        char rsfd_str[12]; // Buffer to hold number
-        sprintf(rsfd_str, "%d", mq_fd_rep); // Convert int to string 
-        execlp(worker2Path, worker2Path, dealer2worker2_name, worker2dealer_name, NULL);
+      // if(processID == 0){
+
         
-        perror("execlp failed w2");  //The program should never reach here
-        exit(2);
-      }
+      //   char w2fd_str[12]; // Buffer to hold  number
+      //   sprintf(w2fd_str, "%d", mq_fd_S2); // Convert int to string ("3")
+      //   char rsfd_str[12]; // Buffer to hold number
+      //   sprintf(rsfd_str, "%d", mq_fd_rep); // Convert int to string 
+      //   execlp(worker2Path, worker2Path, dealer2worker2_name, worker2dealer_name, NULL);
+        
+      //   perror("execlp failed w2");  //The program should never reach here
+      //   exit(2);
+      // }
+
+      for (int i = 0; i < N_SERV2; i++) 
+      { // Start for
+          if (processID > 0) 
+          { // Start if parent
+              processID = fork();
+              
+              if (processID < 0) 
+              {
+                  perror("worker2 fork() failed");
+                  exit(1);
+              }
+
+              if (processID == 0) 
+              {
+                  // Child logic
+                  execlp(worker2Path, worker2Path, dealer2worker2_name, worker2dealer_name, NULL);
+                  perror("execlp failed w2");
+                  exit(2);
+              }
+
+              // Parent records PID
+              workers[i + N_SERV1] = processID; 
+          } // End if parent
+      } // End for
 
     //  * read requests from the Req queue and transfer them to the workers
     //    with the Sx queues

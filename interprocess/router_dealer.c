@@ -308,21 +308,35 @@ if (ret == 0) {
         perror("Timeout");
     }
   if(ret > 0){  
-    fprintf(stderr, "entered ret > 0 \n");
-    if (fds[1].revents & POLLIN){ //Handle a message in the response queue
-    fprintf(stderr, "DEBUG: Attempting to receive from workers...\n"); // Add this
-    ssize_t bytes_read = mq_receive(mq_fd_rep, (char *) &rsp, sizeof(RSP_MESSAGE), NULL);
-    fprintf(stderr, "DEBUG: Receive successful!\n"); // Add this
+    // fprintf(stderr, "entered ret > 0 \n");
+    // if (fds[1].revents & POLLIN){ //Handle a message in the response queue
+    // fprintf(stderr, "DEBUG: Attempting to receive from workers...\n"); // Add this
+    // ssize_t bytes_read = mq_receive(mq_fd_rep, (char *) &rsp, sizeof(RSP_MESSAGE), NULL);
+    // fprintf(stderr, "DEBUG: Receive successful!\n"); // Add this
 
-    if (bytes_read > 0) { // <--- ADD THIS GUARD
-        fprintf(stdout, "%d --> %d\n", rsp.req_id, rsp.result);
-        fflush(stdout);
-        reqCounter--;
-    } else if (bytes_read == -1) {
-        if (errno != EAGAIN && errno != EINTR) {
-            perror("mq_receive failed");
+    // if (bytes_read > 0) { // <--- ADD THIS GUARD
+    //     fprintf(stdout, "%d --> %d\n", rsp.req_id, rsp.result);
+    //     fflush(stdout);
+    //     reqCounter--;
+    // } else if (bytes_read == -1) {
+    //     if (errno != EAGAIN && errno != EINTR) {
+    //         perror("mq_receive failed");
+    //     }
+    // }
+    if (fds[1].revents & POLLIN) {
+    // Loop until the queue is empty (mq_receive returns -1 with EAGAIN)
+    while (true) {
+        ssize_t bytes_read = mq_receive(mq_fd_rep, (char *) &rsp, sizeof(RSP_MESSAGE), NULL);
+        if (bytes_read > 0) {
+            fprintf(stdout, "%d --> %d\n", rsp.req_id, rsp.result);
+            fflush(stdout);
+            reqCounter--;
+        } else {
+            break; // Queue is empty or interrupted
         }
     }
+}
+  
 }
 
     // Retry message sending to S1
@@ -393,7 +407,7 @@ if (ret == 0) {
       }
       //fprintf(stderr, "reqCounter: %d \n", reqCounter);
     }
-  }
+  
 // 1. Check for exit every iteration, regardless of poll outcome
     if (!client_alive && reqCounter <= 0 && !has_pending_S1 && !has_pending_S2) {
         fprintf(stderr, "Dealer: All conditions met. Exiting loop.\n");
@@ -460,10 +474,12 @@ if (ret == 0) {
         perror("mq_close failed");
     }
   }
-    }
+    
 
     // Important notice: make sure that the names of the message queues
     // contain your goup number (to ensure uniqueness during testing)
   
+  
   return (0);
+    }
 }

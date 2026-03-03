@@ -56,7 +56,7 @@ getattr (mqd_t mq_fd)
 
 
 void cleanup(void){ //Generic cleanup function for exit
-    kill(0, SIGKILL); //Kill all children
+  //  kill(0, SIGKILL); //Kill all children
     
     if(mq_unlink(worker2dealer_name) == -1){  //Destroy all queues
       if(errno == ENOENT){
@@ -97,7 +97,7 @@ int main (int argc, char * argv[])
     fprintf (stderr, "%s: invalid arguments\n", argv[0]);
   }
 
-  signal(SIGINT, cleanup_and_exit);
+  //signal(SIGINT, cleanup_and_exit);
   atexit(cleanup);
   
 

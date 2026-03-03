@@ -364,7 +364,7 @@ int main (int argc, char * argv[])
     }
 
     //We wait for the processes to close their queues and exit
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < sizeof(workers); i++) {
       waitpid(workers[i], NULL, 0);
     }
 
@@ -372,7 +372,7 @@ int main (int argc, char * argv[])
     //  * clean up the message queues (see message_queue_test())
     //We close the message queues. The unlinking happens atexit
 
-
+    fprintf(stderr, "about to close the queues");
     if (mq_close(mq_fd_rep) == -1) {
       if (errno == EBADF) {
           fprintf(stderr,"Error: Attempted to close an invalid or already-closed descriptor d2w1.\n");

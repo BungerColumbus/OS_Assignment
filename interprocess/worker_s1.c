@@ -66,7 +66,7 @@ int main (int argc, char * argv[])
     }
 
     //parent sends the shutdown signal
-    //signal(SIGTERM, handle_shutdown);
+    signal(SIGTERM, handle_shutdown);
     
 
     while(keep_working) 

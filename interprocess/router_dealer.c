@@ -110,9 +110,9 @@ int main (int argc, char * argv[])
 
 
   //Pointers towards the filenames of the programs that will be run by the child processes
-  char* worker1Path = "/home/student/Documents/OS_Assignment/interprocess/worker_s1"; 
-  char* clientPath = "/home/student/Documents/OS_Assignment/interprocess/client";
-  char* worker2Path = "/home/student/Documents/OS_Assignment/interprocess/worker_s2";
+  char* worker1Path = "./worker_s1"; 
+  char* clientPath = "./client";
+  char* worker2Path = "./worker_s2";
 
   pid_t processID;  //Defining process ID for the router dealer
   pid_t clientPID;  //Defining process ID for the client

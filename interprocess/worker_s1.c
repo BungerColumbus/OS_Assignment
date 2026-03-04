@@ -102,18 +102,18 @@ int main (int argc, char * argv[])
         }  
     }          
 
-    //  close the message queues  
-    if (mq_close(worker2dealer) == -1) 
-    {
-        perror("mq_close response failed\n");
-         exit(4);
-    }
+    // //  close the message queues  
+    // if (mq_close(worker2dealer) == -1) 
+    // {
+    //     perror("mq_close response failed\n");
+    //      exit(4);
+    // }
  
-    if (mq_close(dealer2worker) == -1) 
-    {
-        perror("mq_close s1 failed\n");
-         exit(4);
-    } 
+    // if (mq_close(dealer2worker) == -1) 
+    // {
+    //     perror("mq_close s1 failed\n");
+    //      exit(4);
+    // } 
     return(0);
 }
 

@@ -373,7 +373,7 @@ if (ret == 0) {
     while (true) {
         ssize_t bytes_read = mq_receive(mq_fd_rep, (char *) &rsp, sizeof(RSP_MESSAGE), NULL);
         if (bytes_read > 0) {
-            fprintf(stdout, "%d --> %d\n", rsp.req_id, rsp.result);
+            fprintf(stdout, "%d -> %d\n", rsp.req_id, rsp.result);
             fflush(stdout);
             reqCounter--;
         } else {

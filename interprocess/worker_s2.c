@@ -102,14 +102,14 @@ int main (int argc, char * argv[])
 
     //  close the message queues  
     fprintf(stderr, "Closing queues \n");
-    mq_close (worker2dealer);
+    // mq_close (worker2dealer);
     if (mq_close(worker2dealer) == -1) 
     {
         perror("mq_close response failed\n");
          exit(4);
     }
 
-    mq_close (dealer2worker);  
+    // mq_close (dealer2worker);  
     if (mq_close(dealer2worker) == -1) 
     {
         perror("mq_close s2 failed\n");
@@ -146,9 +146,9 @@ static void rsleep (int t)
 void handle_shutdown(int sig)
 {
     keep_working = 0;
-    // mq_close(worker2dealer);
-    // mq_close(dealer2worker);
-    // //    fprintf(stderr, "Shutting Down process %d \n", getpid());
-    // exit(0);
+    mq_close(worker2dealer);
+    mq_close(dealer2worker);
+    //    fprintf(stderr, "Shutting Down process %d \n", getpid());
+    exit(0);
 
 }

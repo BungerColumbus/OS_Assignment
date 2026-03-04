@@ -286,7 +286,7 @@ int main (int argc, char * argv[])
     SERVICE_MESSAGE pending_S1, pending_S2; //buffer in case message doesn't work
 
 
-    fds[0].fd = mq_fd_req; fds[0].events = (client_alive && !has_pending_S1 && !has_pending_S2) ? POLLIN : 0; // Only read if sending to worker queue will work
+    fds[0].fd = mq_fd_req; fds[0].events = (!has_pending_S1 && !has_pending_S2) ? POLLIN : 0; // Only read if sending to worker queue will work
     fds[1].fd = mq_fd_rep; fds[1].events = POLLIN;                 // Always listen for responses
     fds[2].fd = mq_fd_S1;  fds[2].events = has_pending_S1 ? POLLOUT : 0; // Only check space if a message needs to be resent
     fds[3].fd = mq_fd_S2;  fds[3].events = has_pending_S2 ? POLLOUT : 0; 
@@ -303,9 +303,10 @@ int main (int argc, char * argv[])
       //exit(5);    
     }
 
+    mq_getattr(mq_fd_req, &attr);
+    long messages_in_queue = attr.mq_curmsgs;
 
-
-    while(client_alive|| reqCounter > 0|| has_pending_S1 || has_pending_S2){ //Handle request and response messages while client is active
+    while(client_alive|| reqCounter > 0|| has_pending_S1 || has_pending_S2 || messages_in_queue > 0){ //Handle request and response messages while client is active
 
     if (client_alive) {
         int r = waitpid(clientPID, &status, WNOHANG);
@@ -333,7 +334,7 @@ if (client_alive) {
             }
         }
     }
-    fds[0].events = (client_alive && !has_pending_S1 && !has_pending_S2) ? POLLIN : 0; // Reinitialize every iteration
+    fds[0].events = (!has_pending_S1 && !has_pending_S2) ? POLLIN : 0; // Reinitialize every iteration
     fds[1].events = POLLIN; 
     fds[2].events = has_pending_S1 ? POLLOUT : 0; 
     fds[3].events = has_pending_S2 ? POLLOUT : 0; 
@@ -397,61 +398,64 @@ if (ret == 0) {
         }
     }
 
-    if(!has_pending_S1 && !has_pending_S2 && (fds[0].revents & POLLIN)){    //Handle a message in the request queue
+    if (!has_pending_S1 && !has_pending_S2 && (fds[0].revents & POLLIN)) {    
+    // INNER LOOP: Drain all available requests from the client queue
+    while (true) {
+        ssize_t bytes_read = mq_receive(mq_fd_req, (char *)&req, sizeof(req), NULL);
+
+        if (bytes_read == -1) {
+            if (errno == EAGAIN) {
+                // Queue is finally empty, break the inner while loop
+                break; 
+            } else if (errno == EINTR) {
+                continue; // Interrupted, try again
+            } else {
+                perror("mq_receive failed");
+                break;
+            }
+        }
+
+        if (bytes_read > 0) {
+            ser.data = req.data;
+            ser.req_id = req.job_id;
+            bool sent_or_buffered = false;
+
+            if (req.service_id == 1) {
+                if (mq_send(mq_fd_S1, (char *)&ser, sizeof(ser), 0) == 0) {
+                    sent_or_buffered = true;
+                } else if (errno == EAGAIN) {
+                    has_pending_S1 = true;
+                    pending_S1 = ser;
+                    sent_or_buffered = true;
+                    // If worker queue is full, we MUST stop draining requests
+                    // or we will overwrite our buffer/lose data.
+                    break; 
+                }
+            } else {
+                if (mq_send(mq_fd_S2, (char *)&ser, sizeof(ser), 0) == 0) {
+                    sent_or_buffered = true;
+                } else if (errno == EAGAIN) {
+                    has_pending_S2 = true;
+                    pending_S2 = ser;
+                    sent_or_buffered = true;
+                    break; 
+                }
+            }
+
+            if (sent_or_buffered) {
+                reqCounter++;
+            }
+            
+            // Critical check: If we just buffered a message, we can't read any more 
+            // until poll() tells us the worker queue has space (POLLOUT).
+            if (has_pending_S1 || has_pending_S2) {
+                break;
+            }
+        }
+    } // End of inner while
     
-      ssize_t bytes_read = mq_receive (mq_fd_req, (char *) &req, sizeof (req), NULL);
 
-      if (bytes_read == -1) {
-          if (errno == EAGAIN) {
-              fprintf(stderr, "Nothing to read from client");
-          } else if (errno == EINTR) {
-              fprintf(stderr, "Receive from client was interrupted by arbitrary signal.\n");
-          } else {
-              perror("mq_receive failed");
-          }
-      }
-
-
-     if (bytes_read > 0) { // Ensure we actually received a message
-          ser.data = req.data;
-          ser.req_id = req.job_id;
-          bool sent_or_buffered = false;
-
-          if(req.service_id == 1){
-              if (mq_send(mq_fd_S1, (char *) &ser, sizeof(SERVICE_MESSAGE), 0) == 0) {
-                  sent_or_buffered = true; 
-              } else if (errno == EAGAIN) {
-                  has_pending_S1 = true;
-                  pending_S1 = ser; //In case message cannot be send cause of a full queue, it is placed in a buffer
-                  sent_or_buffered = true;
-                  perror("Queue full");
-              } else if (errno == EMSGSIZE) {
-                  perror("Message too large");
-              } else {
-                  perror("mq_send failed");
-              }
-          } else {
-              if (mq_send(mq_fd_S2, (char *)&ser, sizeof(ser), 0) == 0) {
-                  sent_or_buffered = true;
-              } else if (errno == EAGAIN) {
-                  has_pending_S2 = true; //In case message cannot be sent cause of a full queue, it is placed in a buffer
-                  pending_S2 = ser;
-                  sent_or_buffered = true;
-                  perror("Queue full");
-              } else if (errno == EMSGSIZE) {
-                  perror("Message too large");
-              } else {
-                  perror("mq_send failed");
-              }
-          }
-
-          if(sent_or_buffered){
-              reqCounter++;
-          }
-      }
-      //fprintf(stderr, "reqCounter: %d \n", reqCounter);
-    }
-  
+} 
 // 1. Check for exit every iteration, regardless of poll outcome
     if (!client_alive && reqCounter <= 0 && !has_pending_S1 && !has_pending_S2) {
         fprintf(stderr, "Dealer: All conditions met. Exiting loop.\n");
@@ -463,6 +467,12 @@ if (ret == 0) {
         fprintf(stderr, "[DEBUG] Loop state: reqCounter=%d, S1_pend=%d, S2_pend=%d\n", 
                 reqCounter, has_pending_S1, has_pending_S2);
     }
+
+    if(mq_getattr(mq_fd_req, &attr) == -1){
+      perror("mq_getattr() function failed");
+      exit(2);
+    }
+    messages_in_queue = attr.mq_curmsgs;
 
     }
 

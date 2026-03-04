@@ -2,8 +2,9 @@
  * Operating Systems  (2INCO)  Practical Assignment
  * Interprocess Communication
  *
- * STUDENT_NAME_1 (STUDENT_NR_1)
- * STUDENT_NAME_2 (STUDENT_NR_2)
+ * Dan Gabriel Vasilescu (2155699)
+ * Vlad Erceanu (2115581)
+ * Alexia Constantinof (2130793)
  *
  * Grading:
  * Your work will be evaluated based on the following criteria:
@@ -140,15 +141,24 @@ static void rsleep (int t)
 /*
  * rhandle_shutdown(int sig)
  *
- * The calling process will know it has no more incoming tasks
+ * The calling process will know it has no more incoming tasks.
+ * Additionally, closes the queues on signal.
  * 
  */
 void handle_shutdown(int sig)
 {
     keep_working = 0;
-    mq_close(worker2dealer);
-    mq_close(dealer2worker);
-    //    fprintf(stderr, "Shutting Down process %d \n", getpid());
-    exit(0);
 
+    if (mq_close(worker2dealer) == -1) 
+    {
+        perror("mq_close response failed\n");
+        exit(4);
+    } 
+
+    if (mq_close(dealer2worker) == -1) 
+    {
+        perror("mq_close s2 failed\n");
+         exit(4);
+    } 
+    exit(0);
 }

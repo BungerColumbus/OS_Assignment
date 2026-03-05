@@ -68,25 +68,15 @@ int main (int argc, char * argv[])
 
     //parent sends the shutdown signal
     signal(SIGTERM, handle_shutdown);
-    
 
-    while(keep_working) 
+    while(1) 
     {
-    bytes_read = mq_receive(dealer2worker, (char *)&message, sizeof(message), NULL);
-    
-    if (bytes_read == -1) 
-    {
-        if (errno == EINTR) // This happens when SIGTERM hits
+        bytes_read = mq_receive(dealer2worker, (char *)&message, sizeof(message), NULL);
+        if (bytes_read == -1) 
         {
-            if (!keep_working) {
-                break; // Jump out of while loop to reach mq_close()
-            }
-            continue; // False alarm, keep working
+            perror("mq_receive failure in dealer2worker queue, s1\n");
+            exit(4);
         }
-        perror("mq_receive failure");
-        exit(4);
-    }
-            
         
     // wait a random amount of time (e.g. rsleep(10000);)
         rsleep(10000);
@@ -95,25 +85,12 @@ int main (int argc, char * argv[])
         response.req_id = message.req_id;
     // write the results to the Response message queue
         bytes_sent = mq_send (worker2dealer, (char *) &response, sizeof (response), 0);  
-        //fprintf(stderr, "Result %d", response.result);
         if (bytes_sent == -1)
         {
             perror("mq_send failure in worker2dealer queue, s1\n");
             exit(4);
         }  
-    }          
-
-    // if (mq_close(worker2dealer) == -1) 
-    // {
-    //     perror("mq_close response failed\n");
-    //      exit(4);
-    // }
- 
-    // if (mq_close(dealer2worker) == -1) 
-    // {
-    //     perror("mq_close s1 failed\n");
-    //      exit(4);
-    // } 
+    }      
     return(0);
 }
 
@@ -145,7 +122,7 @@ static void rsleep (int t)
 void handle_shutdown(int sig)
 {
     keep_working = 0;
-    // close the message queues  
+    //close the queues
     if (mq_close(worker2dealer) == -1) 
     {
         perror("mq_close response failed\n");
@@ -155,7 +132,8 @@ void handle_shutdown(int sig)
     if (mq_close(dealer2worker) == -1) 
     {
         perror("mq_close s2 failed\n");
-         exit(4);
+        exit(4);
     } 
+    //exit the process
     exit(0);
 }

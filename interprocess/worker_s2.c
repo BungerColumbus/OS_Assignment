@@ -70,23 +70,16 @@ int main (int argc, char * argv[])
     //parent sends the shutdown signal
     signal(SIGTERM, handle_shutdown);
 
-    while(keep_working) 
+    while(1) 
     {
     //read from the s2 message queue the new job to do
-            bytes_read = mq_receive(dealer2worker, (char *)&message, sizeof(message), NULL);
+        bytes_read = mq_receive(dealer2worker, (char *)&message, sizeof(message), NULL);
     
-    if (bytes_read == -1) 
-    {
-        if (errno == EINTR) // This happens when SIGTERM hits
+        if (bytes_read == -1) 
         {
-            if (!keep_working) {
-                break; // Jump out of while loop to reach mq_close()
-            }
-            continue; // False alarm, keep working
+            perror("mq_receive failure in dealer2worker queue, s1\n");
+            exit(4);
         }
-        perror("mq_receive failure");
-        exit(4);
-    }
     // wait a random amount of time (e.g. rsleep(10000);)
         rsleep(10000);
     // do the job 
@@ -100,22 +93,6 @@ int main (int argc, char * argv[])
             exit(4);
         }  
     }          
-
-    //  close the message queues  
-    // fprintf(stderr, "Closing queues \n");
-    // // mq_close (worker2dealer);
-    // if (mq_close(worker2dealer) == -1) 
-    // {
-    //     perror("mq_close response failed\n");
-    //      exit(4);
-    // }
-
-    // // mq_close (dealer2worker);  
-    // if (mq_close(dealer2worker) == -1) 
-    // {
-    //     perror("mq_close s2 failed\n");
-    //      exit(4);
-    // } 
     return(0);
 }
 
@@ -148,7 +125,7 @@ static void rsleep (int t)
 void handle_shutdown(int sig)
 {
     keep_working = 0;
-
+    //close the queues
     if (mq_close(worker2dealer) == -1) 
     {
         perror("mq_close response failed\n");
@@ -160,5 +137,6 @@ void handle_shutdown(int sig)
         perror("mq_close s2 failed\n");
          exit(4);
     } 
+    //exit the queues
     exit(0);
 }

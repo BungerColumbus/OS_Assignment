@@ -73,6 +73,28 @@ static void* manage_light(void* arg)
   //  - make the traffic light turn red
   //  - unlock the right mutex(es)
 
+  /**
+   * Current reasoning for this program is the following:
+   * For each side and direction there will be a thread waiting
+   * for the semaphor[side][direction]. Naturally, arg must contain
+   * pointers to the structure containing side and direction
+   * 
+   * Then, after a car arrives i.e. the semaphor waited,
+   * the traffic light will lock a mutex defined in main
+   * print out that the traffic light is green according
+   * to the assignment description, sleep, do the same for red
+   * Finally it will unlock the mutex and restart the loop.
+   * 
+   * The entire loop happens under a while get_real_time < END_TIME
+   */
+
+  /**
+   * This code loop will most likely be the one that needed to be modified
+   * for the advanced solution. For now, I'm thinking about a way to compute
+   * (based on the number assignments for each side and direction) the path
+   * a car would take, which we can use to check if it intersects a car
+   */
+
   return(0);
 }
 

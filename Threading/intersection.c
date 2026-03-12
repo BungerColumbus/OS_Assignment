@@ -92,10 +92,30 @@ int main(int argc, char * argv[])
   start_time();
 
   // TODO: create a thread per traffic light that executes manage_light
+  // 4 threads for traffic lights (each side)
+  pthread_t traffic_light[4];
+  int thread_ids[5];
+
+  for(int i = 0; i < sizeof(traffic_light); i++) {
+    if (pthread_create(&traffic_light[i], NULL, manage_light, &thread_ids[3]) != 0) {
+        printf(stderr, "Failed to create thread for traffic light %d\n", i);
+        return 1;
+    }
+  }
 
   // TODO: create a thread that executes supply_arrivals
+  // 1 thread for supply_arrivals
+  pthread_t arrival_supplier;
+  if (pthread_create(&arrival_supplier, NULL, supply_arrivals, &thread_ids[4]) != 0) {
+        printf(stderr, "Failed to create thread for supply arrival\n");
+        return 1;
+  }
 
   // TODO: wait for all threads to finish
+  for(int i = 0; i < sizeof(traffic_light); i++) {
+      pthread_join(traffic_light[i], NULL);
+  }
+  pthread_join(arrival_supplier, NULL);
 
   // destroy semaphores
   for (int i = 0; i < 4; i++)

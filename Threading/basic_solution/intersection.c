@@ -5,6 +5,7 @@
 #include <errno.h>
 #include <pthread.h>
 #include <semaphore.h>
+#include <time.h>
 
 #include "arrivals.h"
 #include "intersection_time.h"
@@ -74,23 +75,26 @@ static void* supply_arrivals()
 static void* manage_light(void* arg)
 {
   args *coords = (args*) arg;  // cast void* to your struct
+  
 
-    int i = coords->side;          // retrieve side
-    int j = coords->direction;          // retrieve direction
+  int i = coords->side;          // retrieve side
+  int j = coords->direction;          // retrieve direction
 
-    int num_arrivals = 0;
-  // TODO:
-  // while it is not END_TIME yet, repeatedly:
-  //  - wait for an arrival using the semaphore for this traffic light
-  //  - lock the right mutex(es)
-  //  - make the traffic light turn green
-  //  - sleep for CROSS_TIME seconds
-  //  - make the traffic light turn red
-  //  - unlock the right mutex(es)
+  struct timespec ts;
+  int num_arrivals = 0;
 
   while(get_time_passed() < END_TIME)
   {
-    int s = sem_trywait(&semaphores[i][j]);
+    int timeout = END_TIME - get_time_passed();
+    if(timeout < 0) 
+    {
+      return 0;
+    }
+
+    clock_gettime(0, &ts);
+    ts.tv_sec += timeout;
+
+    int s = sem_timedwait(&semaphores[i][j], &ts);
     if(s == 0)
     {
       pthread_mutex_lock (&mutex);
@@ -103,6 +107,8 @@ static void* manage_light(void* arg)
       pthread_mutex_unlock (&mutex);
 
     num_arrivals++;
+    } else {
+      return(0);
     }
   }
   return(0);

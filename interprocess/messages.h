@@ -2,8 +2,9 @@
  * Operating Systems  (2INCO)  Practical Assignment
  * Interprocess Communication
  *
- * STUDENT_NAME_1 (STUDENT_NR_1)
- * STUDENT_NAME_2 (STUDENT_NR_2)
+ * Dan Gabriel Vasilescu (2155699)
+ * Vlad Erceanu (2115581)
+ * Alexia Constantinof (2130793)
  *
  * Grading:
  * Your work will be evaluated based on the following criteria:

@@ -90,19 +90,20 @@ static void* manage_light(void* arg)
 
   while(get_time_passed() < END_TIME)
   {
-    sem_wait(&semaphores[i][j]);
+    int s = sem_trywait(&semaphores[i][j]);
+    if(s == 0)
+    {
+      pthread_mutex_lock (&mutex);
 
-    pthread_mutex_lock (&mutex);
-
-    //critical section 
-    printf("traffic light %d %d turns green at time %d for car %d\n",i, j, get_time_passed(), curr_arrivals[i][j][num_arrivals].id);
-    sleep (CROSS_TIME);
-    printf("traffic light %d %d turns red at time %d\n", i, j, get_time_passed());
-    
-    pthread_mutex_unlock (&mutex);
+      //critical section 
+      printf("traffic light %d %d turns green at time %d for car %d\n",i, j, get_time_passed(), curr_arrivals[i][j][num_arrivals].id);
+      sleep (CROSS_TIME);
+      printf("traffic light %d %d turns red at time %d\n", i, j, get_time_passed());
+      
+      pthread_mutex_unlock (&mutex);
 
     num_arrivals++;
-    
+    }
   }
   return(0);
 }
@@ -167,5 +168,6 @@ int main(int argc, char * argv[])
       sem_destroy(&semaphores[i][j]);
     }
   }
-  return (0);
+
+  exit (1);
 }

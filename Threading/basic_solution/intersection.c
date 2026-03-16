@@ -77,7 +77,6 @@ static void* manage_light(void* arg)
 
     int i = coords->side;          // retrieve side
     int j = coords->direction;          // retrieve direction
-    sem_t semaphore = semaphores[i][j];
 
     int num_arrivals = 0;
   // TODO:
@@ -91,43 +90,20 @@ static void* manage_light(void* arg)
 
   while(get_time_passed() < END_TIME)
   {
-    sem_wait(&semaphore);
+    sem_wait(&semaphores[i][j]);
 
     pthread_mutex_lock (&mutex);
 
-    num_arrivals++;
-
     //critical section 
-    printf("traffic light %d %d turns green at time %d for car %d\n",i, j, get_time_passed, curr_arrivals[i][j][num_arrivals]);
+    printf("traffic light %d %d turns green at time %d for car %d\n",i, j, get_time_passed(), curr_arrivals[i][j][num_arrivals].id);
     sleep (CROSS_TIME);
     printf("traffic light %d %d turns red at time %d\n", i, j, get_time_passed());
     
     pthread_mutex_unlock (&mutex);
+
+    num_arrivals++;
     
   }
-
-  /**
-   * Current reasoning for this program is the following:
-   * For each side and direction there will be a thread waiting
-   * for the semaphor[side][direction]. Naturally, arg must contain
-   * pointers to the structure containing side and direction
-   * 
-   * Then, after a car arrives i.e. the semaphor waited,
-   * the traffic light will lock a mutex defined in main
-   * print out that the traffic light is green according
-   * to the assignment description, sleep, do the same for red
-   * Finally it will unlock the mutex and restart the loop.
-   * 
-   * The entire loop happens under a while get_real_time < END_TIME
-   */
-
-  /**
-   * This code loop will most likely be the one that needed to be modified
-   * for the advanced solution. For now, I'm thinking about a way to compute
-   * (based on the number assignments for each side and direction) the path
-   * a car would take, which we can use to check if it intersects a car
-   */
-
   return(0);
 }
 
@@ -160,7 +136,7 @@ int main(int argc, char * argv[])
       arg_sem[counter].direction = j;
       if (pthread_create(&traffic_light[i][j], NULL, manage_light, &arg_sem[counter]) != 0) 
       {
-          printf(stderr, "Failed to create thread for traffic light %d\n", i);
+          fprintf(stderr, "Failed to create thread for traffic light %d\n", i);
           return 1;
       }
       counter ++;
@@ -171,12 +147,12 @@ int main(int argc, char * argv[])
   // 1 thread for supply_arrivals
   pthread_t arrival_supplier;
   if (pthread_create(&arrival_supplier, NULL, supply_arrivals, NULL) != 0) {
-        printf(stderr, "Failed to create thread for supply arrival\n");
+        fprintf(stderr, "Failed to create thread for supply arrival\n");
         return 1;
   }
 
   // TODO: wait for all threads to finish
-  for(int i = 0; i < sizeof(traffic_light); i++) {
+  for(int i = 0; i < 4; i++) {
     for(int j = 0; j < 3; j++) {
       pthread_join(traffic_light[i][j], NULL);
     }
@@ -191,4 +167,5 @@ int main(int argc, char * argv[])
       sem_destroy(&semaphores[i][j]);
     }
   }
+  return (0);
 }

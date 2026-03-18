@@ -5,6 +5,7 @@
 #include <errno.h>
 #include <pthread.h>
 #include <semaphore.h>
+#include <time.h>
 
 #include "arrivals.h"
 #include "intersection_time.h"
@@ -35,6 +36,11 @@ static sem_t semaphores[4][3];
  * A function for supplying arrivals to the intersection
  * This should be executed by a separate thread
  */
+
+static pthread_mutex_t intersection_mutex[7] = PTHREAD_MUTEX_INITIALIZER;
+
+
+
 static void* supply_arrivals()
 {
   int num_curr_arrivals[4][3] = {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}};
@@ -64,15 +70,46 @@ static void* supply_arrivals()
  */
 static void* manage_light(void* arg)
 {
+  args *coords = (args*) arg;  // cast void* to your struct
+
+  int i = coords->side;          // retrieve side
+  int j = coords->direction;          // retrieve direction
+
+  struct timespec ts;
+  int num_arrivals = 0;
   // TODO:
   // while it is not END_TIME yet, repeatedly:
-  //  - wait for an arrival using the semaphore for this traffic light
-  //  - lock the right mutex(es)
-  //  - make the traffic light turn green
-  //  - sleep for CROSS_TIME seconds
-  //  - make the traffic light turn red
-  //  - unlock the right mutex(es)
+  while(get_time_passed() < END_TIME)
+  {
+    int timeout = END_TIME - get_time_passed();
+    if(timeout < 0) 
+    {
+      return 0;
+    }
 
+    clock_gettime(0, &ts);
+    ts.tv_sec += timeout;
+    //  - wait for an arrival using the semaphore for this traffic light
+    int s = sem_timedwait(&semaphores[i][j], &ts);
+    if(s == 0)
+    {
+      //  - lock the right mutex(es)
+      lockMutexes(i);
+      //  - sleep for CROSS_TIME seconds
+      sleep(CROSS_TIME);
+      //  - make the traffic light turn red
+
+      //  - unlock the right mutex(es)
+      unlockMutexes(i);
+      //  - make the traffic light turn green
+
+      num_arrivals++;
+    } else {
+      return(0);
+    }
+  }
+  return(0);
+  
   /**
    * Current reasoning for this program is the following:
    * For each side and direction there will be a thread waiting
@@ -94,10 +131,109 @@ static void* manage_light(void* arg)
    * (based on the number assignments for each side and direction) the path
    * a car would take, which we can use to check if it intersects a car
    */
-
-  return(0);
 }
 
+void lockMutexes(int i) {
+  switch (i) {
+    case 0:
+      pthread_mutex_unlock (&intersection_mutex[1]);
+      pthread_mutex_unlock (&intersection_mutex[3]);
+      printf("Traffic light unlocked mutexes for North Straight\n");
+      break;
+    case 1:
+      pthread_mutex_unlock (&intersection_mutex[2]);
+      printf("Traffic light unlocked mutexes for North Straight\n");
+      break;
+    case 2:
+      pthread_mutex_unlock (&intersection_mutex[1]);
+      pthread_mutex_unlock (&intersection_mutex[5]);
+      pthread_mutex_unlock (&intersection_mutex[6]);
+      printf("Traffic light unlocked mutexes for East Left\n");
+      break;
+    case 3:
+      pthread_mutex_unlock (&intersection_mutex[2]);
+      pthread_mutex_unlock (&intersection_mutex[3]);
+      pthread_mutex_unlock (&intersection_mutex[4]);
+      printf("Traffic light unlocked mutexes for East Straight\n");
+      break;
+    case 4:
+      pthread_mutex_unlock (&intersection_mutex[0]);
+      printf("Traffic light unlocked mutexes for East Right\n");
+      break;
+    case 5:
+      pthread_mutex_unlock (&intersection_mutex[2]);
+      pthread_mutex_unlock (&intersection_mutex[3]);
+      pthread_mutex_unlock (&intersection_mutex[5]);
+      printf("Traffic light unlocked mutexes for South Left\n");
+      break;
+    case 6:
+      pthread_mutex_unlock (&intersection_mutex[0]);
+      pthread_mutex_unlock (&intersection_mutex[6]);
+      pthread_mutex_unlock (&intersection_mutex[4]);
+      printf("Traffic light unlocked mutexes for South Straight\n");
+      break;
+    case 7:
+      pthread_mutex_unlock (&intersection_mutex[0]);
+      pthread_mutex_unlock (&intersection_mutex[3]);
+      printf("Traffic light unlocked mutexes for West Left\n");
+      break;
+    case 8:
+      pthread_mutex_unlock (&intersection_mutex[1]);
+      printf("Traffic light unlocked mutexes for West Right\n");
+      break;
+  }
+}
+
+void unlockMutexes(int i) {
+  switch (i) {
+    case 0:
+      pthread_mutex_unlock (&intersection_mutex[1]);
+      pthread_mutex_unlock (&intersection_mutex[3]);
+      printf("Traffic light unlocked mutexes for North Straight\n");
+      break;
+    case 1:
+      pthread_mutex_unlock (&intersection_mutex[2]);
+      printf("Traffic light unlocked mutexes for North Straight\n");
+      break;
+    case 2:
+      pthread_mutex_unlock (&intersection_mutex[1]);
+      pthread_mutex_unlock (&intersection_mutex[5]);
+      pthread_mutex_unlock (&intersection_mutex[6]);
+      printf("Traffic light unlocked mutexes for East Left\n");
+      break;
+    case 3:
+      pthread_mutex_unlock (&intersection_mutex[2]);
+      pthread_mutex_unlock (&intersection_mutex[3]);
+      pthread_mutex_unlock (&intersection_mutex[4]);
+      printf("Traffic light unlocked mutexes for East Straight\n");
+      break;
+    case 4:
+      pthread_mutex_unlock (&intersection_mutex[0]);
+      printf("Traffic light unlocked mutexes for East Right\n");
+      break;
+    case 5:
+      pthread_mutex_unlock (&intersection_mutex[2]);
+      pthread_mutex_unlock (&intersection_mutex[3]);
+      pthread_mutex_unlock (&intersection_mutex[5]);
+      printf("Traffic light unlocked mutexes for South Left\n");
+      break;
+    case 6:
+      pthread_mutex_unlock (&intersection_mutex[0]);
+      pthread_mutex_unlock (&intersection_mutex[6]);
+      pthread_mutex_unlock (&intersection_mutex[4]);
+      printf("Traffic light unlocked mutexes for South Straight\n");
+      break;
+    case 7:
+      pthread_mutex_unlock (&intersection_mutex[0]);
+      pthread_mutex_unlock (&intersection_mutex[3]);
+      printf("Traffic light unlocked mutexes for West Left\n");
+      break;
+    case 8:
+      pthread_mutex_unlock (&intersection_mutex[1]);
+      printf("Traffic light unlocked mutexes for West Right\n");
+      break;
+  }
+}
 
 int main(int argc, char * argv[])
 {
@@ -115,11 +251,11 @@ int main(int argc, char * argv[])
 
   // TODO: create a thread per traffic light that executes manage_light
   // 4 threads for traffic lights (each side)
-  pthread_t traffic_light[4];
-  int thread_ids[5];
+  pthread_t traffic_light[9];
+  int thread_ids[10];
 
   for(int i = 0; i < sizeof(traffic_light); i++) {
-    if (pthread_create(&traffic_light[i], NULL, manage_light, &thread_ids[3]) != 0) {
+    if (pthread_create(&traffic_light[i], NULL, manage_light, &thread_ids[i]) != 0) {
         printf(stderr, "Failed to create thread for traffic light %d\n", i);
         return 1;
     }
@@ -128,7 +264,7 @@ int main(int argc, char * argv[])
   // TODO: create a thread that executes supply_arrivals
   // 1 thread for supply_arrivals
   pthread_t arrival_supplier;
-  if (pthread_create(&arrival_supplier, NULL, supply_arrivals, &thread_ids[4]) != 0) {
+  if (pthread_create(&arrival_supplier, NULL, supply_arrivals, &thread_ids[10]) != 0) {
         printf(stderr, "Failed to create thread for supply arrival\n");
         return 1;
   }

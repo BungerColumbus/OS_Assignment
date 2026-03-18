@@ -16,4 +16,10 @@ typedef struct
   int time;               // the time in seconds at which the car arrives
 } Arrival;
 
+typedef struct 
+{
+  int side;
+  int direction;
+}args;
+
 #endif

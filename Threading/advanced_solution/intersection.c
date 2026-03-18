@@ -63,6 +63,91 @@ static void* supply_arrivals()
 }
 
 
+void lockMutexes(int i) {
+  switch (i) {
+    case 0:
+      pthread_mutex_unlock (&intersection_mutex[1]);
+      pthread_mutex_unlock (&intersection_mutex[3]);
+      break;
+    case 1:
+      pthread_mutex_unlock (&intersection_mutex[2]);
+      break;
+    case 2:
+      pthread_mutex_unlock (&intersection_mutex[1]);
+      pthread_mutex_unlock (&intersection_mutex[5]);
+      pthread_mutex_unlock (&intersection_mutex[6]);
+      break;
+    case 3:
+      pthread_mutex_unlock (&intersection_mutex[2]);
+      pthread_mutex_unlock (&intersection_mutex[3]);
+      pthread_mutex_unlock (&intersection_mutex[4]);
+      break;
+    case 4:
+      pthread_mutex_unlock (&intersection_mutex[0]);
+      break;
+    case 5:
+      pthread_mutex_unlock (&intersection_mutex[2]);
+      pthread_mutex_unlock (&intersection_mutex[3]);
+      pthread_mutex_unlock (&intersection_mutex[5]);
+      break;
+    case 6:
+      pthread_mutex_unlock (&intersection_mutex[0]);
+      pthread_mutex_unlock (&intersection_mutex[6]);
+      pthread_mutex_unlock (&intersection_mutex[4]);
+      break;
+    case 7:
+      pthread_mutex_unlock (&intersection_mutex[0]);
+      pthread_mutex_unlock (&intersection_mutex[3]);
+      break;
+    case 8:
+      pthread_mutex_unlock (&intersection_mutex[1]);
+      break;
+  }
+}
+
+void unlockMutexes(int i) {
+  switch (i) {
+    case 0:
+      pthread_mutex_unlock (&intersection_mutex[1]);
+      pthread_mutex_unlock (&intersection_mutex[3]);
+      break;
+    case 1:
+      pthread_mutex_unlock (&intersection_mutex[2]);
+      break;
+    case 2:
+      pthread_mutex_unlock (&intersection_mutex[1]);
+      pthread_mutex_unlock (&intersection_mutex[5]);
+      pthread_mutex_unlock (&intersection_mutex[6]);
+      break;
+    case 3:
+      pthread_mutex_unlock (&intersection_mutex[2]);
+      pthread_mutex_unlock (&intersection_mutex[3]);
+      pthread_mutex_unlock (&intersection_mutex[4]);
+      break;
+    case 4:
+      pthread_mutex_unlock (&intersection_mutex[0]);
+      break;
+    case 5:
+      pthread_mutex_unlock (&intersection_mutex[2]);
+      pthread_mutex_unlock (&intersection_mutex[3]);
+      pthread_mutex_unlock (&intersection_mutex[5]);
+      break;
+    case 6:
+      pthread_mutex_unlock (&intersection_mutex[0]);
+      pthread_mutex_unlock (&intersection_mutex[6]);
+      pthread_mutex_unlock (&intersection_mutex[4]);
+      break;
+    case 7:
+      pthread_mutex_unlock (&intersection_mutex[0]);
+      pthread_mutex_unlock (&intersection_mutex[3]);
+      break;
+    case 8:
+      pthread_mutex_unlock (&intersection_mutex[1]);
+      break;
+  }
+}
+
+
 /*
  * manage_light(void* arg)
  *
@@ -94,15 +179,16 @@ static void* manage_light(void* arg)
     if(s == 0)
     {
       //  - lock the right mutex(es)
-      lockMutexes(i);
+      lockMutexes(i*j + i);
+      //  - make the traffic light turn green
+      printf("traffic light %d %d turns green at time %d for car %d\n",i, j, get_time_passed(), curr_arrivals[i][j][num_arrivals].id);
       //  - sleep for CROSS_TIME seconds
       sleep(CROSS_TIME);
-      //  - make the traffic light turn red
-
       //  - unlock the right mutex(es)
-      unlockMutexes(i);
-      //  - make the traffic light turn green
-
+      unlockMutexes(i*j + i);
+      //  - make the traffic light turn red
+      printf("traffic light %d %d turns red at time %d\n", i, j, get_time_passed());
+      sleep (CROSS_TIME);
       num_arrivals++;
     } else {
       return(0);
@@ -131,108 +217,6 @@ static void* manage_light(void* arg)
    * (based on the number assignments for each side and direction) the path
    * a car would take, which we can use to check if it intersects a car
    */
-}
-
-void lockMutexes(int i) {
-  switch (i) {
-    case 0:
-      pthread_mutex_unlock (&intersection_mutex[1]);
-      pthread_mutex_unlock (&intersection_mutex[3]);
-      printf("Traffic light unlocked mutexes for North Straight\n");
-      break;
-    case 1:
-      pthread_mutex_unlock (&intersection_mutex[2]);
-      printf("Traffic light unlocked mutexes for North Straight\n");
-      break;
-    case 2:
-      pthread_mutex_unlock (&intersection_mutex[1]);
-      pthread_mutex_unlock (&intersection_mutex[5]);
-      pthread_mutex_unlock (&intersection_mutex[6]);
-      printf("Traffic light unlocked mutexes for East Left\n");
-      break;
-    case 3:
-      pthread_mutex_unlock (&intersection_mutex[2]);
-      pthread_mutex_unlock (&intersection_mutex[3]);
-      pthread_mutex_unlock (&intersection_mutex[4]);
-      printf("Traffic light unlocked mutexes for East Straight\n");
-      break;
-    case 4:
-      pthread_mutex_unlock (&intersection_mutex[0]);
-      printf("Traffic light unlocked mutexes for East Right\n");
-      break;
-    case 5:
-      pthread_mutex_unlock (&intersection_mutex[2]);
-      pthread_mutex_unlock (&intersection_mutex[3]);
-      pthread_mutex_unlock (&intersection_mutex[5]);
-      printf("Traffic light unlocked mutexes for South Left\n");
-      break;
-    case 6:
-      pthread_mutex_unlock (&intersection_mutex[0]);
-      pthread_mutex_unlock (&intersection_mutex[6]);
-      pthread_mutex_unlock (&intersection_mutex[4]);
-      printf("Traffic light unlocked mutexes for South Straight\n");
-      break;
-    case 7:
-      pthread_mutex_unlock (&intersection_mutex[0]);
-      pthread_mutex_unlock (&intersection_mutex[3]);
-      printf("Traffic light unlocked mutexes for West Left\n");
-      break;
-    case 8:
-      pthread_mutex_unlock (&intersection_mutex[1]);
-      printf("Traffic light unlocked mutexes for West Right\n");
-      break;
-  }
-}
-
-void unlockMutexes(int i) {
-  switch (i) {
-    case 0:
-      pthread_mutex_unlock (&intersection_mutex[1]);
-      pthread_mutex_unlock (&intersection_mutex[3]);
-      printf("Traffic light unlocked mutexes for North Straight\n");
-      break;
-    case 1:
-      pthread_mutex_unlock (&intersection_mutex[2]);
-      printf("Traffic light unlocked mutexes for North Straight\n");
-      break;
-    case 2:
-      pthread_mutex_unlock (&intersection_mutex[1]);
-      pthread_mutex_unlock (&intersection_mutex[5]);
-      pthread_mutex_unlock (&intersection_mutex[6]);
-      printf("Traffic light unlocked mutexes for East Left\n");
-      break;
-    case 3:
-      pthread_mutex_unlock (&intersection_mutex[2]);
-      pthread_mutex_unlock (&intersection_mutex[3]);
-      pthread_mutex_unlock (&intersection_mutex[4]);
-      printf("Traffic light unlocked mutexes for East Straight\n");
-      break;
-    case 4:
-      pthread_mutex_unlock (&intersection_mutex[0]);
-      printf("Traffic light unlocked mutexes for East Right\n");
-      break;
-    case 5:
-      pthread_mutex_unlock (&intersection_mutex[2]);
-      pthread_mutex_unlock (&intersection_mutex[3]);
-      pthread_mutex_unlock (&intersection_mutex[5]);
-      printf("Traffic light unlocked mutexes for South Left\n");
-      break;
-    case 6:
-      pthread_mutex_unlock (&intersection_mutex[0]);
-      pthread_mutex_unlock (&intersection_mutex[6]);
-      pthread_mutex_unlock (&intersection_mutex[4]);
-      printf("Traffic light unlocked mutexes for South Straight\n");
-      break;
-    case 7:
-      pthread_mutex_unlock (&intersection_mutex[0]);
-      pthread_mutex_unlock (&intersection_mutex[3]);
-      printf("Traffic light unlocked mutexes for West Left\n");
-      break;
-    case 8:
-      pthread_mutex_unlock (&intersection_mutex[1]);
-      printf("Traffic light unlocked mutexes for West Right\n");
-      break;
-  }
 }
 
 int main(int argc, char * argv[])

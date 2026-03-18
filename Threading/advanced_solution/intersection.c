@@ -251,27 +251,38 @@ int main(int argc, char * argv[])
 
   // TODO: create a thread per traffic light that executes manage_light
   // 4 threads for traffic lights (each side)
-  pthread_t traffic_light[9];
-  int thread_ids[10];
+  pthread_t traffic_light[4][3];
+  args arg_sem[12];
+  int counter = 0;
 
-  for(int i = 0; i < sizeof(traffic_light); i++) {
-    if (pthread_create(&traffic_light[i], NULL, manage_light, &thread_ids[i]) != 0) {
-        printf(stderr, "Failed to create thread for traffic light %d\n", i);
-        return 1;
+  for(int i = 0; i < 4; i++) 
+  {
+    for(int j = 0; j < 3; j++)
+    {
+      arg_sem[counter].side = i;
+      arg_sem[counter].direction = j;
+      if (pthread_create(&traffic_light[i][j], NULL, manage_light, &arg_sem[counter]) != 0) 
+      {
+          fprintf(stderr, "Failed to create thread for traffic light %d\n", i);
+          return 1;
+      }
+      counter ++;
     }
   }
 
   // TODO: create a thread that executes supply_arrivals
   // 1 thread for supply_arrivals
   pthread_t arrival_supplier;
-  if (pthread_create(&arrival_supplier, NULL, supply_arrivals, &thread_ids[10]) != 0) {
-        printf(stderr, "Failed to create thread for supply arrival\n");
+  if (pthread_create(&arrival_supplier, NULL, supply_arrivals, NULL) != 0) {
+        fprintf(stderr, "Failed to create thread for supply arrival\n");
         return 1;
   }
 
   // TODO: wait for all threads to finish
-  for(int i = 0; i < sizeof(traffic_light); i++) {
-      pthread_join(traffic_light[i], NULL);
+  for(int i = 0; i < 4; i++) {
+    for(int j = 0; j < 3; j++) {
+      pthread_join(traffic_light[i][j], NULL);
+    }
   }
   pthread_join(arrival_supplier, NULL);
 
@@ -283,4 +294,6 @@ int main(int argc, char * argv[])
       sem_destroy(&semaphores[i][j]);
     }
   }
+
+  exit (1);
 }

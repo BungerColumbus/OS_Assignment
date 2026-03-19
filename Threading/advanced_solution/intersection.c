@@ -65,83 +65,83 @@ static void* supply_arrivals()
 
 void lockMutexes(int i) {
   switch (i) {
-    case 0:
-      pthread_mutex_unlock (&intersection_mutex[1]);
-      pthread_mutex_unlock (&intersection_mutex[3]);
-      break;
     case 1:
-      pthread_mutex_unlock (&intersection_mutex[2]);
+      pthread_mutex_lock (&intersection_mutex[1]);
+      pthread_mutex_lock (&intersection_mutex[3]);
       break;
     case 2:
-      pthread_mutex_unlock (&intersection_mutex[1]);
-      pthread_mutex_unlock (&intersection_mutex[5]);
-      pthread_mutex_unlock (&intersection_mutex[6]);
+      pthread_mutex_lock (&intersection_mutex[2]);
       break;
     case 3:
-      pthread_mutex_unlock (&intersection_mutex[2]);
-      pthread_mutex_unlock (&intersection_mutex[3]);
-      pthread_mutex_unlock (&intersection_mutex[4]);
+      pthread_mutex_lock (&intersection_mutex[1]);
+      pthread_mutex_lock (&intersection_mutex[5]);
+      pthread_mutex_lock (&intersection_mutex[6]);
       break;
     case 4:
-      pthread_mutex_unlock (&intersection_mutex[0]);
+      pthread_mutex_lock (&intersection_mutex[2]);
+      pthread_mutex_lock (&intersection_mutex[3]);
+      pthread_mutex_lock (&intersection_mutex[4]);
       break;
     case 5:
-      pthread_mutex_unlock (&intersection_mutex[2]);
-      pthread_mutex_unlock (&intersection_mutex[3]);
-      pthread_mutex_unlock (&intersection_mutex[5]);
+      pthread_mutex_lock (&intersection_mutex[0]);
       break;
     case 6:
-      pthread_mutex_unlock (&intersection_mutex[0]);
-      pthread_mutex_unlock (&intersection_mutex[6]);
-      pthread_mutex_unlock (&intersection_mutex[4]);
+      pthread_mutex_lock (&intersection_mutex[2]);
+      pthread_mutex_lock (&intersection_mutex[3]);
+      pthread_mutex_lock (&intersection_mutex[5]);
       break;
     case 7:
-      pthread_mutex_unlock (&intersection_mutex[0]);
-      pthread_mutex_unlock (&intersection_mutex[3]);
+      pthread_mutex_lock (&intersection_mutex[0]);
+      pthread_mutex_lock (&intersection_mutex[6]);
+      pthread_mutex_lock (&intersection_mutex[4]);
       break;
-    case 8:
-      pthread_mutex_unlock (&intersection_mutex[1]);
+    case 9:
+      pthread_mutex_lock (&intersection_mutex[0]);
+      pthread_mutex_lock (&intersection_mutex[3]);
+      break;
+    case 11:
+      pthread_mutex_lock (&intersection_mutex[1]);
       break;
   }
 }
 
 void unlockMutexes(int i) {
   switch (i) {
-    case 0:
+    case 1:
       pthread_mutex_unlock (&intersection_mutex[1]);
       pthread_mutex_unlock (&intersection_mutex[3]);
-      break;
-    case 1:
-      pthread_mutex_unlock (&intersection_mutex[2]);
       break;
     case 2:
+      pthread_mutex_unlock (&intersection_mutex[2]);
+      break;
+    case 3:
       pthread_mutex_unlock (&intersection_mutex[1]);
       pthread_mutex_unlock (&intersection_mutex[5]);
       pthread_mutex_unlock (&intersection_mutex[6]);
       break;
-    case 3:
+    case 4:
       pthread_mutex_unlock (&intersection_mutex[2]);
       pthread_mutex_unlock (&intersection_mutex[3]);
       pthread_mutex_unlock (&intersection_mutex[4]);
       break;
-    case 4:
+    case 5:
       pthread_mutex_unlock (&intersection_mutex[0]);
       break;
-    case 5:
+    case 6:
       pthread_mutex_unlock (&intersection_mutex[2]);
       pthread_mutex_unlock (&intersection_mutex[3]);
       pthread_mutex_unlock (&intersection_mutex[5]);
-      break;
-    case 6:
-      pthread_mutex_unlock (&intersection_mutex[0]);
-      pthread_mutex_unlock (&intersection_mutex[6]);
-      pthread_mutex_unlock (&intersection_mutex[4]);
       break;
     case 7:
       pthread_mutex_unlock (&intersection_mutex[0]);
+      pthread_mutex_unlock (&intersection_mutex[6]);
+      pthread_mutex_unlock (&intersection_mutex[4]);
+      break;
+    case 9:
+      pthread_mutex_unlock (&intersection_mutex[0]);
       pthread_mutex_unlock (&intersection_mutex[3]);
       break;
-    case 8:
+    case 11:
       pthread_mutex_unlock (&intersection_mutex[1]);
       break;
   }
@@ -179,13 +179,13 @@ static void* manage_light(void* arg)
     if(s == 0)
     {
       //  - lock the right mutex(es)
-      lockMutexes(i*j + i);
+      lockMutexes(i*3 + j);
       //  - make the traffic light turn green
       printf("traffic light %d %d turns green at time %d for car %d\n",i, j, get_time_passed(), curr_arrivals[i][j][num_arrivals].id);
       //  - sleep for CROSS_TIME seconds
       sleep(CROSS_TIME);
       //  - unlock the right mutex(es)
-      unlockMutexes(i*j + i);
+      unlockMutexes(i*3 + j);
       //  - make the traffic light turn red
       printf("traffic light %d %d turns red at time %d\n", i, j, get_time_passed());
       sleep (CROSS_TIME);

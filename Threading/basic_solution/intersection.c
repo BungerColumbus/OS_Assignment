@@ -39,6 +39,13 @@ static sem_t semaphores[4][3];
  * A function for supplying arrivals to the intersection
  * This should be executed by a separate thread
  */
+
+typedef struct 
+{
+  int side;
+  int direction;
+}args;
+
 static void* supply_arrivals()
 {
   int num_curr_arrivals[4][3] = {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}};
@@ -168,6 +175,4 @@ int main(int argc, char * argv[])
       sem_destroy(&semaphores[i][j]);
     }
   }
-
-  exit (1);
 }

@@ -39,7 +39,11 @@ static sem_t semaphores[4][3];
 
 static pthread_mutex_t intersection_mutex[7] = PTHREAD_MUTEX_INITIALIZER;
 
-
+typedef struct 
+{
+  int side;
+  int direction;
+}args;
 
 static void* supply_arrivals()
 {
@@ -278,6 +282,4 @@ int main(int argc, char * argv[])
       sem_destroy(&semaphores[i][j]);
     }
   }
-
-  exit (1);
 }

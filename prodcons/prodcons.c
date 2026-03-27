@@ -79,10 +79,33 @@ consumer (void * arg)
 
 int main (void)
 {
-    // TODO: 
-    // * startup the producer threads and the consumer thread
-    // * wait until all threads are finished  
-    
+	pthread_t prod[NROF_PRODUCERS];
+	pthread_t cons;
+
+	//create producer threads
+	for(int i = 0; i < NROF_PRODUCERS; i++)
+	{
+	  if (pthread_create(&prod, NULL, producer, NULL) != 0 )
+      {
+          fprintf(stderr, "Failed to create thread for producer no. %d\n", i);
+          return 1;
+      }
+	}
+
+	//create consumer thread
+	if (pthread_create(&cons, NULL, consumer, NULL) != 0 )
+	{
+		fprintf(stderr, "Failed to create thread for consumer\n");
+		return 1;
+	}
+
+	//wait for threads to finish
+	for(int i = 0; i < NROF_PRODUCERS; i++) {
+      pthread_join(prod[i], NULL);
+    }
+
+	pthread_join(cons, NULL);
+
     return (0);
 }
 

@@ -26,6 +26,9 @@ static ITEM buffer[BUFFER_SIZE];
 static void rsleep (int t);	    // already implemented (see below)
 static ITEM get_next_item (void);   // already implemented (see below)
 ITEM item;
+int expected_value = 0; //We assume the first value is 0
+static pthread_mutex_t      buffer_mutex          = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t       buffer_state      = PTHREAD_COND_INITIALIZER;
 
 /* producer thread */
 static void * 
@@ -51,6 +54,22 @@ producer (void * arg)
         //      mutex-unlock;
         //
         // (see condition_test() in condition_basics.c how to use condition variables)
+		//pthread_mutex_lock(&mutex);
+		// while (item < expected_value)
+		// {
+		// 	/* code */
+		// }
+		for(int i = 0; i < BUFFER_SIZE; i++){
+			if(buffer[i] == NULL){
+				buffer[i] = item;
+				expected_value +=1;
+				printf(stderr, "Expected value %d", expected_value);
+				break;
+			}
+		}
+
+		
+
     }
 	return (NULL);
 }

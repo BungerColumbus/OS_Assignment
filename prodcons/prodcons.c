@@ -25,16 +25,17 @@ static ITEM buffer[BUFFER_SIZE];
 
 static void rsleep (int t);	    // already implemented (see below)
 static ITEM get_next_item (void);   // already implemented (see below)
-
+ITEM item;
 
 /* producer thread */
 static void * 
 producer (void * arg)
 {
-    while (true /* TODO: not all items produced */)
+    while (item = get_next_item != NROF_ITEMS /* TODO: not all items produced */)
     {
         // TODO: 
         // * get the new item
+		//I think I already did using item
 		
         rsleep (100);	// simulating all kind of activities...
 		

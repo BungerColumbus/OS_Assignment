@@ -2,8 +2,9 @@
  * Operating Systems  (2INC0)  Practical Assignment.
  * Condition Variables Application.
  *
- * STUDENT_NAME_1 (STUDENT_NR_1)
- * STUDENT_NAME_2 (STUDENT_NR_2)
+ * Dan Gabriel Vasilescu (2155699)
+ * Vlad Erceanu (2115581)
+ * Alexia Constantinof (2130793)
  *
  * Grading:
  * Students who hand in clean code that fully satisfies the minimum requirements will get an 8. 

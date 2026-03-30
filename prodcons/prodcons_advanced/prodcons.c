@@ -33,7 +33,7 @@ static int expected_value = 0;
 static bool received[NROF_ITEMS] = {false};  // Track which items arrived
 static int signal_calls = 0;
 static int broadcast_calls = 0;
-static int wake_on_broadcast = 0;
+static int wake_on_signal = 0;
 
 static pthread_mutex_t      buffer_mutex          = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t       consumer_state        = PTHREAD_COND_INITIALIZER;
@@ -61,10 +61,10 @@ producer (void * arg)
         {
             pthread_cond_wait(&producer_state, &buffer_mutex);
 
-			wake_on_broadcast++;
-			fprintf(stderr,"broascast %d wakes up producer %d\n",broadcast_calls, id);
+            wake_on_signal++;
+		    fprintf(stderr,"signal %d wakes up producer %d (%d time)\n",signal_calls, id, wake_on_signal);
         }
-		
+        
         // critical-section;
         buffer[buffer_count] = item;  // Insert at next available position
         buffer_count++;   
@@ -87,12 +87,12 @@ consumer (void * arg)
         // lock mutex
         pthread_mutex_lock(&buffer_mutex);
         
-        // while condiiton is false
+        // while condition is false
         while (buffer_count == 0 && !production_done) {
             pthread_cond_wait(&consumer_state, &buffer_mutex);
         }
         
-        // exit if production done AND buffer empty
+        // Exit if production done AND buffer empty
         if (buffer_count == 0 && production_done) {
             pthread_mutex_unlock(&buffer_mutex);
             break;
@@ -115,9 +115,9 @@ consumer (void * arg)
 		}
         
         // possible-cv-signals
-		broadcast_calls++;
-		fprintf(stderr,"broadcast call = %d (consumer to producers)\n", broadcast_calls);
-        pthread_cond_broadcast(&producer_state);
+		signal_calls++;
+		fprintf(stderr,"signal number = %d (consumer to producer)\n", signal_calls);
+        pthread_cond_signal(&producer_state);
         
         // unlock mutex
         pthread_mutex_unlock(&buffer_mutex);
@@ -129,7 +129,7 @@ consumer (void * arg)
 
 int main (void)
 {
-	clock_t start = clock();
+    clock_t start = clock();
     pthread_t prod[NROF_PRODUCERS];
     pthread_t cons;
 	int ids[NROF_PRODUCERS];
@@ -168,10 +168,10 @@ int main (void)
 
 	fprintf(stderr, "Number of signal calls = %d\n", signal_calls);
 	fprintf(stderr, "Number of broadcast calls = %d\n", broadcast_calls);
-	fprintf(stderr, "Number of times producers have been woken up = %d\n", wake_on_broadcast);
-
-	//compute running_time
-	clock_t end = clock();
+	fprintf(stderr, "Number of times producers have been woken up = %d\n", wake_on_signal);
+	
+    //compute running time
+    clock_t end = clock();
     double running_time = (double)(end - start) / CLOCKS_PER_SEC;
     fprintf(stderr, "Running time = %.6f seconds\n", running_time);
     return (0);

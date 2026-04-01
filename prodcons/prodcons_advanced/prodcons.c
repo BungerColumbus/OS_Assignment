@@ -34,7 +34,7 @@ static int expected_value = 0;
 static int signal_calls = 0;
 static int broadcast_calls = 0;
 static int wake_on_signal = 0;
-static int producer_has_item = -1;
+static int current_items[NROF_PRODUCERS] = {-1};
 
 static pthread_mutex_t      buffer_mutex          = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t       consumer_state        = PTHREAD_COND_INITIALIZER;
@@ -52,15 +52,13 @@ producer (void * arg)
         if (item == NROF_ITEMS)  
             break;
 
-        rsleep (100);	
+        rsleep (100);
+
+        //report currently hodling item
+        current_items[id] = item; 
 		
         // lock mutex-lock;
         pthread_mutex_lock(&buffer_mutex);  
-       
-        //identify self as holding the next item
-        if (item == expected_value) {
-            producer_has_item = id; 
-        } 
 
         // wait while condition is not TRUE
         while (item != expected_value || buffer_count + 1 == BUFFER_SIZE)
@@ -71,8 +69,8 @@ producer (void * arg)
 		    fprintf(stderr,"signal %d wakes up producer %d (%d time)\n",signal_calls, id, wake_on_signal);
         }
 
-        // done waiting → clear flag
-        producer_has_item = -1;
+        // clear information about item
+        current_items[id] = -1;
 
         // critical-section;
         buffer[buffer_count] = item;  
@@ -118,9 +116,19 @@ consumer (void * arg)
 
         buffer_count--;
 
+        //find id of the producer which holds the next item
+        int prod_id;
+        for(int i=0; i<NROF_PRODUCERS; i++) 
+        {
+            if( current_items[i] == expected_value) 
+            {
+                prod_id = i;
+                break;
+            }
+        }
         //signal producer which holds the expected item
-            signal_calls++;
-            pthread_cond_signal(&producer_state[producer_has_item]);
+        signal_calls++;
+        pthread_cond_signal(&producer_state[prod_id]);
         
         // unlock mutex
         pthread_mutex_unlock(&buffer_mutex);

@@ -58,7 +58,7 @@ producer (void * arg)
         pthread_mutex_lock(&buffer_mutex);
         
         // wait while condition is not TRUE
-        while (buffer_count == BUFFER_SIZE)
+        while (item != expected_value || buffer_count + 1 == BUFFER_SIZE)
         {
             pthread_cond_wait(&producer_state, &buffer_mutex);
 
@@ -68,7 +68,8 @@ producer (void * arg)
 		
         // critical-section;
         buffer[buffer_count] = item;  // Insert at next available position
-        buffer_count++;   
+        buffer_count++;
+        expected_value++;    
         
 		//signal consumer thread
         pthread_cond_signal(&consumer_state);
@@ -99,21 +100,31 @@ consumer (void * arg)
             break;
         }
         
-		// get the next item from buffer[]
-        ITEM buffer_item = buffer[0];
-        buffer_count--;
-        for (int i = 0; i < BUFFER_SIZE - 1; i++) {
-            buffer[i] = buffer[i+1];  // Shift elements left
+        //output FIFO
+        printf("%d\n", buffer[0]);
+
+        //remove it from the buffer
+        for (int i = 0; i < buffer_count - 1; i++) {
+            buffer[i] = buffer[i+1];  
         }
 
-		received[buffer_item] = true;
+        buffer_count--;
 
-		// Print all consecutive items we now have (reordering logic)
-		while (expected_value < NROF_ITEMS && received[expected_value]) {
-    		printf("%d\n", expected_value);
-    		received[expected_value] = false;  // Optional: clean up
-    		expected_value++;
-		}
+		// // get the next item from buffer[]
+        // ITEM buffer_item = buffer[0];
+        // buffer_count--;
+        // for (int i = 0; i < BUFFER_SIZE - 1; i++) {
+        //     buffer[i] = buffer[i+1];  // Shift elements left
+        // }
+
+		// received[buffer_item] = true;
+
+		// // Print all consecutive items we now have (reordering logic)
+		// while (expected_value < NROF_ITEMS && received[expected_value]) {
+    	// 	printf("%d\n", expected_value);
+    	// 	received[expected_value] = false;  // Optional: clean up
+    	// 	expected_value++;
+		// }
         
         // possible-cv-signals
 		broadcast_calls++;

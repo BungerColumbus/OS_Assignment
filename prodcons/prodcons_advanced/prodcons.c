@@ -31,14 +31,14 @@ static ITEM get_next_item (void);   // already implemented (see below)
 static int buffer_count = 0;
 static bool production_done = false;
 static int expected_value = 0;
-static bool received[NROF_ITEMS] = {false};  // Track which items arrived
 static int signal_calls = 0;
 static int broadcast_calls = 0;
 static int wake_on_signal = 0;
+static int producer_has_item = -1;
 
 static pthread_mutex_t      buffer_mutex          = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t       consumer_state        = PTHREAD_COND_INITIALIZER;
-static pthread_cond_t       producer_state        = PTHREAD_COND_INITIALIZER;
+pthread_cond_t       producer_state[NROF_PRODUCERS];
 
 /* producer thread */
 static void * 
@@ -51,26 +51,34 @@ producer (void * arg)
         ITEM item = get_next_item();
         if (item == NROF_ITEMS)  
             break;
-		
+
         rsleep (100);	
 		
         // lock mutex-lock;
-        pthread_mutex_lock(&buffer_mutex);
-        
+        pthread_mutex_lock(&buffer_mutex);  
+       
+        //identify self as holding the next item
+        if (item == expected_value) {
+            producer_has_item = id; 
+        } 
+
         // wait while condition is not TRUE
         while (item != expected_value || buffer_count + 1 == BUFFER_SIZE)
         {
-            pthread_cond_wait(&producer_state, &buffer_mutex);
+            pthread_cond_wait(&producer_state[id], &buffer_mutex);
 
             wake_on_signal++;
 		    fprintf(stderr,"signal %d wakes up producer %d (%d time)\n",signal_calls, id, wake_on_signal);
         }
-        
+
+        // done waiting → clear flag
+        producer_has_item = -1;
+
         // critical-section;
         buffer[buffer_count] = item;  
         buffer_count++;  
         expected_value++; 
-        
+
 		//signal consumer thread
         pthread_cond_signal(&consumer_state);
         
@@ -99,7 +107,7 @@ consumer (void * arg)
             pthread_mutex_unlock(&buffer_mutex);
             break;
         }
-        
+
         //output FIFO
         printf("%d\n", buffer[0]);
 
@@ -110,26 +118,9 @@ consumer (void * arg)
 
         buffer_count--;
 
-		// // get the next item from buffer
-        // ITEM buffer_item = buffer[0];
-        // buffer_count--;
-        // for (int i = 0; i < BUFFER_SIZE - 1; i++) {
-        //     buffer[i] = buffer[i+1];  // Shift elements left
-        // }
-
-		// received[buffer_item] = true;
-
-		// // print all consecutive items we now have
-		// while (expected_value < NROF_ITEMS && received[expected_value]) {
-    	// 	printf("%d\n", expected_value);
-    	// 	received[expected_value] = false; 
-    	// 	expected_value++;
-		// }
-        
-        // possible-cv-signals
-		signal_calls++;
-		fprintf(stderr,"signal number = %d (consumer to producer)\n", signal_calls);
-        pthread_cond_signal(&producer_state);
+        //signal producer which holds the expected item
+            signal_calls++;
+            pthread_cond_signal(&producer_state[producer_has_item]);
         
         // unlock mutex
         pthread_mutex_unlock(&buffer_mutex);
@@ -145,6 +136,11 @@ int main (void)
     pthread_t prod[NROF_PRODUCERS];
     pthread_t cons;
 	int ids[NROF_PRODUCERS];
+
+    //initiate condition for each producer
+    for (int i = 0; i < NROF_PRODUCERS; i++) {
+        pthread_cond_init(&producer_state[i], NULL); 
+    }
 
     //create producer threads
     for (int i = 0; i < NROF_PRODUCERS; i++)
@@ -177,6 +173,11 @@ int main (void)
 
     //wait for consumer thread to finish
     pthread_join(cons, NULL);
+
+    //destroy condition objects because they are allocated at runtime
+    for (int i = 0; i < NROF_PRODUCERS; i++) {
+        pthread_cond_destroy(&producer_state[i]);
+    }
 
 	fprintf(stderr, "Number of signal calls = %d\n", signal_calls);
 	fprintf(stderr, "Number of broadcast calls = %d\n", broadcast_calls);

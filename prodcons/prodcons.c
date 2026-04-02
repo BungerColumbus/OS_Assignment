@@ -31,7 +31,6 @@ static ITEM get_next_item (void);   // already implemented (see below)
 static int buffer_count = 0;
 static bool production_done = false;
 static int expected_value = 0;
-static bool received[NROF_ITEMS] = {false};  // Track which items arrived
 static int signal_calls = 0;
 static int broadcast_calls = 0;
 static int wake_on_broadcast = 0;
@@ -89,7 +88,7 @@ consumer (void * arg)
         // lock mutex
         pthread_mutex_lock(&buffer_mutex);
         
-        // while condiiton is false
+        // while condition is false
         while (buffer_count == 0 && !production_done) {
             pthread_cond_wait(&consumer_state, &buffer_mutex);
         }
@@ -100,33 +99,17 @@ consumer (void * arg)
             break;
         }
         
-        //output FIFO
+        //handle the an item from the array in FIFO order
         printf("%d\n", buffer[0]);
 
-        //remove it from the buffer
+        //remove the item from the buffer
         for (int i = 0; i < buffer_count - 1; i++) {
             buffer[i] = buffer[i+1];  
         }
 
         buffer_count--;
-
-		// // get the next item from buffer[]
-        // ITEM buffer_item = buffer[0];
-        // buffer_count--;
-        // for (int i = 0; i < BUFFER_SIZE - 1; i++) {
-        //     buffer[i] = buffer[i+1];  // Shift elements left
-        // }
-
-		// received[buffer_item] = true;
-
-		// // Print all consecutive items we now have (reordering logic)
-		// while (expected_value < NROF_ITEMS && received[expected_value]) {
-    	// 	printf("%d\n", expected_value);
-    	// 	received[expected_value] = false;  // Optional: clean up
-    	// 	expected_value++;
-		// }
-        
-        // possible-cv-signals
+		
+        // broadcast producers
 		broadcast_calls++;
 		fprintf(stderr,"broadcast call = %d (consumer to producers)\n", broadcast_calls);
         pthread_cond_broadcast(&producer_state);
